@@ -32,9 +32,249 @@ type EventDraft = {
 };
 
 type EditorMode = "quick" | "full";
+type AppTab = "work" | "calendar";
+type WorkProjectStatus = "active" | "parked" | "done";
+type WorkPriority = "high" | "medium" | "low";
+type WorkTaskStatus = "todo" | "scheduled" | "overdue" | "done";
+type AgentCardTone = "accent" | "warn" | "danger" | "info";
+
+type WorkTask = {
+  id: string;
+  name: string;
+  estimateMinutes: number;
+  status: WorkTaskStatus;
+  scheduledLabel?: string;
+};
+
+type AgentActionCard = {
+  id: string;
+  type: string;
+  tone: AgentCardTone;
+  title: string;
+  body: string;
+  cta: string;
+};
+
+type WorkProject = {
+  id: string;
+  name: string;
+  areaId: string;
+  priority: WorkPriority;
+  status: WorkProjectStatus;
+  softDeadline?: string;
+  lastWorkedOn: string;
+  agentStatus: "Active" | "Neglected" | "On track" | "Parked";
+  assessment: string;
+  tasks: WorkTask[];
+  actionCards: AgentActionCard[];
+};
+
+type WorkArea = {
+  id: string;
+  name: string;
+  projects: WorkProject[];
+};
+
+const WORK_AREAS: WorkArea[] = [
+  {
+    id: "career",
+    name: "Career",
+    projects: [
+      {
+        id: "career-interview-loop",
+        name: "Interview Prep",
+        areaId: "career",
+        priority: "high",
+        status: "active",
+        softDeadline: "Apr 02",
+        lastWorkedOn: "2 days ago",
+        agentStatus: "Neglected",
+        assessment:
+          "This project matters, but the weekly plan is still too fragile. You have high-stakes tasks here and not enough protected time on the calendar yet.",
+        tasks: [
+          {
+            id: "task-system-design",
+            name: "Practice system design story",
+            estimateMinutes: 90,
+            status: "scheduled",
+            scheduledLabel: "Thu 09:00",
+          },
+          {
+            id: "task-mock-interview",
+            name: "Run mock interview with scorecard",
+            estimateMinutes: 60,
+            status: "todo",
+          },
+          {
+            id: "task-behavioral",
+            name: "Rewrite behavioral answers",
+            estimateMinutes: 45,
+            status: "overdue",
+          },
+          {
+            id: "task-company-brief",
+            name: "Read company brief and notes",
+            estimateMinutes: 30,
+            status: "done",
+          },
+        ],
+        actionCards: [
+          {
+            id: "proposal-interview",
+            type: "Proposal ready",
+            tone: "accent",
+            title: "Proposal ready",
+            body: "I found three focus windows this week that can cover the remaining prep without crowding the mornings.",
+            cta: "Review schedule",
+          },
+          {
+            id: "neglected-interview",
+            type: "Neglected alert",
+            tone: "danger",
+            title: "Neglected 5 days",
+            body: "You said this was important, but only one task is currently blocked. I should protect more time unless you want to park it.",
+            cta: "Protect time",
+          },
+        ],
+      },
+      {
+        id: "career-writing",
+        name: "Writing System",
+        areaId: "career",
+        priority: "medium",
+        status: "active",
+        softDeadline: "Apr 15",
+        lastWorkedOn: "Today",
+        agentStatus: "On track",
+        assessment:
+          "This one is healthy. The next move is consistency, not urgency, so the plan should stay light and repeatable.",
+        tasks: [
+          {
+            id: "task-outline",
+            name: "Outline essay #3",
+            estimateMinutes: 40,
+            status: "scheduled",
+            scheduledLabel: "Fri 12:30",
+          },
+          {
+            id: "task-edit",
+            name: "Edit previous draft",
+            estimateMinutes: 35,
+            status: "todo",
+          },
+          {
+            id: "task-publish",
+            name: "Publish and share notes",
+            estimateMinutes: 20,
+            status: "done",
+          },
+        ],
+        actionCards: [
+          {
+            id: "scheduled-writing",
+            type: "Scheduled",
+            tone: "info",
+            title: "Scheduled this week",
+            body: "Two focused sessions are already on the calendar. You probably do not need more time here unless another project gets parked.",
+            cta: "View blocks",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "health",
+    name: "Health",
+    projects: [
+      {
+        id: "health-strength",
+        name: "Strength Reset",
+        areaId: "health",
+        priority: "low",
+        status: "active",
+        lastWorkedOn: "6 days ago",
+        agentStatus: "Neglected",
+        assessment:
+          "This project is at risk of becoming symbolic. Either it needs smaller entry tasks or it needs one protected recurring slot that actually survives the week.",
+        tasks: [
+          {
+            id: "task-gym-a",
+            name: "Gym session A",
+            estimateMinutes: 50,
+            status: "todo",
+          },
+          {
+            id: "task-gym-b",
+            name: "Gym session B",
+            estimateMinutes: 50,
+            status: "todo",
+          },
+          {
+            id: "task-mobility",
+            name: "Mobility reset",
+            estimateMinutes: 20,
+            status: "done",
+          },
+        ],
+        actionCards: [
+          {
+            id: "unresolved-health",
+            type: "Unresolved",
+            tone: "warn",
+            title: "Unresolved",
+            body: "I can schedule this, but only if you want training to live in Morning windows. Midday space is already overloaded.",
+            cta: "Choose a window",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "life",
+    name: "Life",
+    projects: [
+      {
+        id: "life-admin",
+        name: "Home Admin Reset",
+        areaId: "life",
+        priority: "medium",
+        status: "parked",
+        lastWorkedOn: "11 days ago",
+        agentStatus: "Parked",
+        assessment:
+          "Parking this is probably correct for now. If it becomes real again, the first step should be a tiny admin sweep rather than reopening the whole thing.",
+        tasks: [
+          {
+            id: "task-bills",
+            name: "Review recurring bills",
+            estimateMinutes: 25,
+            status: "todo",
+          },
+          {
+            id: "task-docs",
+            name: "Organize insurance docs",
+            estimateMinutes: 30,
+            status: "done",
+          },
+        ],
+        actionCards: [
+          {
+            id: "take-life",
+            type: "Agent's take",
+            tone: "info",
+            title: "Agent's take",
+            body: "This should stay parked until the active career work is more stable. Reopening it this week would mostly add noise.",
+            cta: "Keep parked",
+          },
+        ],
+      },
+    ],
+  },
+];
 
 export function CalendarShell() {
   const calendarRef = useRef<FullCalendar | null>(null);
+  const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [selectedDate, setSelectedDate] = useState(new Date("2026-03-18T09:00:00"));
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>("quick");
@@ -43,6 +283,18 @@ export function CalendarShell() {
   const [currentRange, setCurrentRange] = useState<{ start: string; end: string } | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(WORK_AREAS[0].projects[0].id);
+  const [expandedProjectIds, setExpandedProjectIds] = useState<string[]>([
+    WORK_AREAS[0].projects[0].id,
+  ]);
+
+  const selectedProject =
+    WORK_AREAS.flatMap((area) => area.projects).find((project) => project.id === selectedProjectId) ??
+    WORK_AREAS[0].projects[0];
+  const visibleProjects =
+    WORK_AREAS.flatMap((area) => area.projects).filter((project) =>
+      selectedProject.areaId ? project.areaId === selectedProject.areaId : true,
+    );
 
   const monthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   const monthEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
@@ -83,6 +335,14 @@ export function CalendarShell() {
     }
 
     api.scrollToTime(time);
+  }
+
+  function toggleProjectExpansion(projectId: string) {
+    setExpandedProjectIds((current) =>
+      current.includes(projectId)
+        ? current.filter((id) => id !== projectId)
+        : [...current, projectId],
+    );
   }
 
   useEffect(() => {
@@ -301,198 +561,393 @@ export function CalendarShell() {
             <div className="topbar">
               <div className="brand">Productivity Agent</div>
               <nav className="nav-group" aria-label="Primary navigation">
-                <button className="nav-item" data-active="false" type="button">Work</button>
-                <button className="nav-item" data-active="true" type="button">Calendar</button>
+                <button
+                  className="nav-item"
+                  data-active={activeTab === "work"}
+                  type="button"
+                  onClick={() => setActiveTab("work")}
+                >
+                  Work
+                </button>
+                <button
+                  className="nav-item"
+                  data-active={activeTab === "calendar"}
+                  type="button"
+                  onClick={() => setActiveTab("calendar")}
+                >
+                  Calendar
+                </button>
               </nav>
             </div>
           </div>
 
-          <div className="three-column-layout">
-            <aside className="left-rail">
-              <div className="left-stack">
-                <section className="panel-card mini-calendar">
-                  <div className="mini-calendar-header">
-                    <p className="rail-title">
-                      {selectedDate.toLocaleString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                      })}
+          {activeTab === "work" ? (
+            <div className="three-column-layout three-column-layout-work">
+              <aside className="left-rail">
+                <div className="left-stack work-left-stack">
+                  <section className="panel-card work-sidebar">
+                    <p className="section-title">Areas</p>
+                    <div className="area-list">
+                      {WORK_AREAS.map((area) => (
+                        <section key={area.id} className="area-section">
+                          <p className="area-title">{area.name}</p>
+                          <div className="project-list">
+                            {area.projects.map((project) => (
+                              <button
+                                key={project.id}
+                                type="button"
+                                className="project-nav-item"
+                                data-active={project.id === selectedProject.id || undefined}
+                                onClick={() => setSelectedProjectId(project.id)}
+                              >
+                                <span
+                                  className="priority-dot"
+                                  data-priority={project.priority}
+                                  aria-hidden="true"
+                                />
+                                <span className="project-nav-copy">
+                                  <span className="project-nav-name">{project.name}</span>
+                                  <span className="project-nav-meta">
+                                    {toProjectLabel(project.status)} · {project.lastWorkedOn}
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                    <button className="ghost-button full-width-button" type="button">
+                      New project
+                    </button>
+                  </section>
+                </div>
+              </aside>
+
+              <section className="calendar-card main-column work-main-column">
+                <div className="work-project-stream">
+                  <div className="work-task-list-header">
+                    <p className="section-title">
+                      {areaNameForId(selectedProject.areaId)} projects
                     </p>
-                    <div className="mini-calendar-controls">
-                      <button
-                        className="mini-calendar-button"
-                        type="button"
-                        onClick={() => shiftMiniCalendar(-1)}
-                        aria-label="Previous month"
-                      >
-                        ←
-                      </button>
-                      <button
-                        className="mini-calendar-button"
-                        type="button"
-                        onClick={() => shiftMiniCalendar(1)}
-                        aria-label="Next month"
-                      >
-                        →
-                      </button>
-                    </div>
+                    <span className="task-count">{visibleProjects.length} projects</span>
                   </div>
-                  <div className="mini-calendar-grid">
-                    <div className="mini-weekday">M</div>
-                    <div className="mini-weekday">T</div>
-                    <div className="mini-weekday">W</div>
-                    <div className="mini-weekday">T</div>
-                    <div className="mini-weekday">F</div>
-                    <div className="mini-weekday">S</div>
-                    <div className="mini-weekday">S</div>
-                    {miniCalendarDays.map((day, index) => {
-                      const label = day?.getDate() ?? "";
-                      const isActive =
-                        day !== null &&
-                        day.toDateString() === selectedDate.toDateString();
 
-                      return (
+                  {visibleProjects.map((project) => {
+                    const isExpanded = expandedProjectIds.includes(project.id);
+                    const openTasks = project.tasks.filter((task) => task.status !== "done");
+                    const doneTasks = project.tasks.filter((task) => task.status === "done");
+
+                    return (
+                      <section
+                        key={project.id}
+                        className="project-accordion-card"
+                        data-active={project.id === selectedProject.id || undefined}
+                      >
                         <button
-                          key={day?.toISOString() ?? `empty-${index}`}
                           type="button"
-                          className="mini-cell"
-                          data-active={isActive || undefined}
-                          data-empty={day === null || undefined}
-                          onClick={() => day && syncCalendarDate(day)}
-                          disabled={day === null}
-                          aria-label={day ? day.toDateString() : "Empty day"}
+                          className="project-accordion-header"
+                          onClick={() => {
+                            setSelectedProjectId(project.id);
+                            toggleProjectExpansion(project.id);
+                          }}
                         >
-                          {label}
+                          <div className="project-accordion-title-row">
+                            <div className="project-accordion-name-wrap">
+                              <span
+                                className="priority-dot"
+                                data-priority={project.priority}
+                                aria-hidden="true"
+                              />
+                              <h2 className="project-accordion-title">{project.name}</h2>
+                            </div>
+                            <span
+                              className="status-badge"
+                              data-tone={toneForAgentStatus(project.agentStatus)}
+                            >
+                              {project.agentStatus}
+                            </span>
+                          </div>
+
+                          <div className="project-accordion-meta">
+                            <span>{areaNameForId(project.areaId)}</span>
+                            <span>Last worked: {project.lastWorkedOn}</span>
+                            <span>Deadline: {project.softDeadline ?? "None"}</span>
+                            <span>{openTasks.length} open tasks</span>
+                          </div>
                         </button>
-                      );
-                    })}
-                  </div>
-                </section>
 
-                <section className="panel-card">
-                  <p className="coach-label">AI Coach</p>
-                  <div className="coach-bubble">
-                    Real calendar mechanics first. The assistant should protect focus blocks,
-                    not create more activity around them.
-                  </div>
-                </section>
-              </div>
-            </aside>
+                        {isExpanded ? (
+                          <div className="project-accordion-body">
+                            <div className="task-list-group">
+                              {openTasks.map((task) => (
+                                <div key={task.id} className="task-row">
+                                  <label className="task-checkbox">
+                                    <input type="checkbox" disabled={task.status === "done"} />
+                                  </label>
+                                  <div className="task-copy">
+                                    <p className="task-name">{task.name}</p>
+                                  </div>
+                                  <span className="task-pill" data-state={task.status}>
+                                    {task.status === "scheduled"
+                                      ? `Scheduled · ${task.scheduledLabel}`
+                                      : task.status === "overdue"
+                                        ? "Overdue"
+                                        : "Unscheduled"}
+                                  </span>
+                                  <span className="task-duration">{task.estimateMinutes} min</span>
+                                </div>
+                              ))}
+                            </div>
 
-            <section className="calendar-card main-column">
-              <div className="calendar-focus-bar" aria-label="Calendar focus shortcuts">
-                <p className="section-title">Focus Hours</p>
-                <div className="focus-chip-row">
-                  <button
-                    className="ghost-button focus-chip"
-                    type="button"
-                    onClick={() => scrollCalendarToTime(currentTimeScrollTarget())}
-                  >
-                    Now
-                  </button>
-                  <button
-                    className="ghost-button focus-chip"
-                    type="button"
-                    onClick={() => scrollCalendarToTime("08:00:00")}
-                  >
-                    Morning
-                  </button>
-                  <button
-                    className="ghost-button focus-chip"
-                    type="button"
-                    onClick={() => scrollCalendarToTime("12:00:00")}
-                  >
-                    Midday
-                  </button>
-                  <button
-                    className="ghost-button focus-chip"
-                    type="button"
-                    onClick={() => scrollCalendarToTime("18:00:00")}
-                  >
-                    Evening
-                  </button>
+                            {doneTasks.length ? (
+                              <div className="task-list-complete">
+                                {doneTasks.map((task) => (
+                                  <div key={task.id} className="task-row task-row-done">
+                                    <label className="task-checkbox">
+                                      <input type="checkbox" checked readOnly />
+                                    </label>
+                                    <div className="task-copy">
+                                      <p className="task-name">{task.name}</p>
+                                    </div>
+                                    <span className="task-pill" data-state="done">Done</span>
+                                    <span className="task-duration">{task.estimateMinutes} min</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+
+                            <button className="ghost-button add-task-button" type="button">
+                              Add task
+                            </button>
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })}
                 </div>
-              </div>
+              </section>
 
-              {(calendarError || isLoadingEvents) ? (
-                <div className="status-row">
-                  {isLoadingEvents ? (
-                    <span className="status-item status-item-loading">Loading events…</span>
-                  ) : null}
-                  {calendarError ? <span>{calendarError}</span> : null}
+              <aside className="right-rail">
+                <div className="right-stack work-right-stack">
+                  <section className="panel-card work-agent-panel">
+                    <div className="agent-panel-section">
+                      <p className="coach-label">Agent Assessment</p>
+                      <div className="coach-bubble">{selectedProject.assessment}</div>
+                    </div>
+
+                    <div className="agent-card-list">
+                      {selectedProject.actionCards.map((card) => (
+                        <article
+                          key={card.id}
+                          className="agent-action-card"
+                          data-tone={card.tone}
+                        >
+                          <p className="agent-card-type">{card.type}</p>
+                          <h2 className="agent-card-title">{card.title}</h2>
+                          <p className="agent-card-body">{card.body}</p>
+                          <button className="ghost-button full-width-button" type="button">
+                            {card.cta}
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+
+                    <button className="primary-button full-width-button" type="button">
+                      Brainstorm with agent
+                    </button>
+                  </section>
                 </div>
-              ) : null}
-
-              <div className="calendar-frame">
-                <FullCalendar
-                  ref={calendarRef}
-                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                  initialView="timeGridWeek"
-                  initialDate={selectedDate}
-                  headerToolbar={{
-                    left: "prev,next today newEvent",
-                    center: "title",
-                    right: "dayGridMonth,timeGridWeek,timeGridDay",
-                  }}
-                  customButtons={{
-                    newEvent: {
-                      text: "New event",
-                      click: openCreateModal,
-                    },
-                  }}
-                  editable
-                  selectable
-                  selectMirror
-                  nowIndicator
-                allDaySlot
-                slotDuration="01:00:00"
-                slotLabelInterval="01:00:00"
-                snapDuration="00:15:00"
-                slotMinTime="00:00:00"
-                slotMaxTime="24:00:00"
-                scrollTime="09:00:00"
-                scrollTimeReset
-                events={events}
-                  eventClick={handleEventClick}
-                  dateClick={handleDateClick}
-                  select={handleSelect}
-                  eventDrop={handleEventChange}
-                  eventResize={handleEventChange}
-                  height="78vh"
-                  datesSet={handleDatesSet}
-                />
-              </div>
-            </section>
-
-            <aside className="right-rail">
-              <div className="right-stack">
-                <section className="command-card">
-                  <p className="section-title">Command</p>
-                  <input
-                    className="command-input"
-                    defaultValue="Move the doctor appointment to tomorrow at 11."
-                    aria-label="Natural language command"
-                  />
-                </section>
-
-                <section className="context-card">
-                  <p className="section-title">Today</p>
-                  <div className="context-list">
-                    <div className="context-item">
-                      <strong>Protect 10:00 to 12:00</strong>
-                      <p>
-                        This is your cleanest focus window. Keep meetings out unless the cost is real.
+              </aside>
+            </div>
+          ) : (
+            <div className="three-column-layout">
+              <aside className="left-rail">
+                <div className="left-stack">
+                  <section className="panel-card mini-calendar">
+                    <div className="mini-calendar-header">
+                      <p className="rail-title">
+                        {selectedDate.toLocaleString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })}
                       </p>
+                      <div className="mini-calendar-controls">
+                        <button
+                          className="mini-calendar-button"
+                          type="button"
+                          onClick={() => shiftMiniCalendar(-1)}
+                          aria-label="Previous month"
+                        >
+                          ←
+                        </button>
+                        <button
+                          className="mini-calendar-button"
+                          type="button"
+                          onClick={() => shiftMiniCalendar(1)}
+                          aria-label="Next month"
+                        >
+                          →
+                        </button>
+                      </div>
                     </div>
-                    <div className="context-item">
-                      <strong>One unscheduled priority</strong>
-                      <p>Convert “Draft weekly review” into a 45 minute block this afternoon.</p>
+                    <div className="mini-calendar-grid">
+                      <div className="mini-weekday">M</div>
+                      <div className="mini-weekday">T</div>
+                      <div className="mini-weekday">W</div>
+                      <div className="mini-weekday">T</div>
+                      <div className="mini-weekday">F</div>
+                      <div className="mini-weekday">S</div>
+                      <div className="mini-weekday">S</div>
+                      {miniCalendarDays.map((day, index) => {
+                        const label = day?.getDate() ?? "";
+                        const isActive =
+                          day !== null &&
+                          day.toDateString() === selectedDate.toDateString();
+
+                        return (
+                          <button
+                            key={day?.toISOString() ?? `empty-${index}`}
+                            type="button"
+                            className="mini-cell"
+                            data-active={isActive || undefined}
+                            data-empty={day === null || undefined}
+                            onClick={() => day && syncCalendarDate(day)}
+                            disabled={day === null}
+                            aria-label={day ? day.toDateString() : "Empty day"}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
+                  </section>
+
+                  <section className="panel-card">
+                    <p className="coach-label">AI Coach</p>
+                    <div className="coach-bubble">
+                      Real calendar mechanics first. The assistant should protect focus blocks,
+                      not create more activity around them.
+                    </div>
+                  </section>
+                </div>
+              </aside>
+
+              <section className="calendar-card main-column">
+                <div className="calendar-focus-bar" aria-label="Calendar focus shortcuts">
+                  <p className="section-title">Focus Hours</p>
+                  <div className="focus-chip-row">
+                    <button
+                      className="ghost-button focus-chip"
+                      type="button"
+                      onClick={() => scrollCalendarToTime(currentTimeScrollTarget())}
+                    >
+                      Now
+                    </button>
+                    <button
+                      className="ghost-button focus-chip"
+                      type="button"
+                      onClick={() => scrollCalendarToTime("08:00:00")}
+                    >
+                      Morning
+                    </button>
+                    <button
+                      className="ghost-button focus-chip"
+                      type="button"
+                      onClick={() => scrollCalendarToTime("12:00:00")}
+                    >
+                      Midday
+                    </button>
+                    <button
+                      className="ghost-button focus-chip"
+                      type="button"
+                      onClick={() => scrollCalendarToTime("18:00:00")}
+                    >
+                      Evening
+                    </button>
                   </div>
-                </section>
-              </div>
-            </aside>
-          </div>
+                </div>
+
+                {(calendarError || isLoadingEvents) ? (
+                  <div className="status-row">
+                    {isLoadingEvents ? (
+                      <span className="status-item status-item-loading">Loading events…</span>
+                    ) : null}
+                    {calendarError ? <span>{calendarError}</span> : null}
+                  </div>
+                ) : null}
+
+                <div className="calendar-frame">
+                  <FullCalendar
+                    ref={calendarRef}
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    initialView="timeGridWeek"
+                    initialDate={selectedDate}
+                    headerToolbar={{
+                      left: "prev,next today newEvent",
+                      center: "title",
+                      right: "dayGridMonth,timeGridWeek,timeGridDay",
+                    }}
+                    customButtons={{
+                      newEvent: {
+                        text: "New event",
+                        click: openCreateModal,
+                      },
+                    }}
+                    editable
+                    selectable
+                    selectMirror
+                    nowIndicator
+                    allDaySlot
+                    slotDuration="01:00:00"
+                    slotLabelInterval="01:00:00"
+                    snapDuration="00:15:00"
+                    slotMinTime="00:00:00"
+                    slotMaxTime="24:00:00"
+                    scrollTime="09:00:00"
+                    scrollTimeReset
+                    events={events}
+                    eventClick={handleEventClick}
+                    dateClick={handleDateClick}
+                    select={handleSelect}
+                    eventDrop={handleEventChange}
+                    eventResize={handleEventChange}
+                    height="78vh"
+                    datesSet={handleDatesSet}
+                  />
+                </div>
+              </section>
+
+              <aside className="right-rail">
+                <div className="right-stack">
+                  <section className="command-card">
+                    <p className="section-title">Command</p>
+                    <input
+                      className="command-input"
+                      defaultValue="Move the doctor appointment to tomorrow at 11."
+                      aria-label="Natural language command"
+                    />
+                  </section>
+
+                  <section className="context-card">
+                    <p className="section-title">Today</p>
+                    <div className="context-list">
+                      <div className="context-item">
+                        <strong>Protect 10:00 to 12:00</strong>
+                        <p>
+                          This is your cleanest focus window. Keep meetings out unless the cost is real.
+                        </p>
+                      </div>
+                      <div className="context-item">
+                        <strong>One unscheduled priority</strong>
+                        <p>Convert “Draft weekly review” into a 45 minute block this afternoon.</p>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </aside>
+            </div>
+          )}
         </div>
       </main>
 
@@ -668,6 +1123,38 @@ export function CalendarShell() {
       ) : null}
     </>
   );
+}
+
+function areaNameForId(areaId: string): string {
+  return WORK_AREAS.find((area) => area.id === areaId)?.name ?? "Unknown";
+}
+
+function toProjectLabel(status: WorkProjectStatus): string {
+  if (status === "active") {
+    return "Active";
+  }
+
+  if (status === "parked") {
+    return "Parked";
+  }
+
+  return "Done";
+}
+
+function toneForAgentStatus(status: WorkProject["agentStatus"]): AgentCardTone {
+  if (status === "Neglected") {
+    return "danger";
+  }
+
+  if (status === "On track") {
+    return "accent";
+  }
+
+  if (status === "Parked") {
+    return "info";
+  }
+
+  return "warn";
 }
 
 function toDateInputValue(date: Date): string {
