@@ -32,11 +32,12 @@ type EventDraft = {
 };
 
 type EditorMode = "quick" | "full";
-type AppTab = "work" | "calendar";
+type AppTab = "work" | "calendar" | "jarvis";
 type WorkProjectStatus = "active" | "parked" | "done";
 type WorkPriority = "high" | "medium" | "low";
 type WorkTaskStatus = "todo" | "scheduled" | "overdue" | "done";
 type AgentCardTone = "accent" | "warn" | "danger" | "info";
+type ChatRole = "agent" | "user";
 
 type WorkTask = {
   id: string;
@@ -46,13 +47,11 @@ type WorkTask = {
   scheduledLabel?: string;
 };
 
-type AgentActionCard = {
+type AgentChatMessage = {
   id: string;
-  type: string;
-  tone: AgentCardTone;
-  title: string;
+  role: ChatRole;
   body: string;
-  cta: string;
+  meta?: string;
 };
 
 type WorkProject = {
@@ -66,7 +65,6 @@ type WorkProject = {
   agentStatus: "Active" | "Neglected" | "On track" | "Parked";
   assessment: string;
   tasks: WorkTask[];
-  actionCards: AgentActionCard[];
 };
 
 type WorkArea = {
@@ -118,24 +116,6 @@ const WORK_AREAS: WorkArea[] = [
             status: "done",
           },
         ],
-        actionCards: [
-          {
-            id: "proposal-interview",
-            type: "Proposal ready",
-            tone: "accent",
-            title: "Proposal ready",
-            body: "I found three focus windows this week that can cover the remaining prep without crowding the mornings.",
-            cta: "Review schedule",
-          },
-          {
-            id: "neglected-interview",
-            type: "Neglected alert",
-            tone: "danger",
-            title: "Neglected 5 days",
-            body: "You said this was important, but only one task is currently blocked. I should protect more time unless you want to park it.",
-            cta: "Protect time",
-          },
-        ],
       },
       {
         id: "career-writing",
@@ -167,16 +147,6 @@ const WORK_AREAS: WorkArea[] = [
             name: "Publish and share notes",
             estimateMinutes: 20,
             status: "done",
-          },
-        ],
-        actionCards: [
-          {
-            id: "scheduled-writing",
-            type: "Scheduled",
-            tone: "info",
-            title: "Scheduled this week",
-            body: "Two focused sessions are already on the calendar. You probably do not need more time here unless another project gets parked.",
-            cta: "View blocks",
           },
         ],
       },
@@ -216,16 +186,6 @@ const WORK_AREAS: WorkArea[] = [
             status: "done",
           },
         ],
-        actionCards: [
-          {
-            id: "unresolved-health",
-            type: "Unresolved",
-            tone: "warn",
-            title: "Unresolved",
-            body: "I can schedule this, but only if you want training to live in Morning windows. Midday space is already overloaded.",
-            cta: "Choose a window",
-          },
-        ],
       },
     ],
   },
@@ -257,23 +217,43 @@ const WORK_AREAS: WorkArea[] = [
             status: "done",
           },
         ],
-        actionCards: [
-          {
-            id: "take-life",
-            type: "Agent's take",
-            tone: "info",
-            title: "Agent's take",
-            body: "This should stay parked until the active career work is more stable. Reopening it this week would mostly add noise.",
-            cta: "Keep parked",
-          },
-        ],
       },
     ],
   },
 ];
 
+const WORK_CHAT_SEED: AgentChatMessage[] = [
+  {
+    id: "seed-1",
+    role: "agent",
+    meta: "Morning check-in",
+    body:
+      "Interview Prep is still the project most at risk. It has the highest urgency, but the week is not yet protected enough for it.",
+  },
+  {
+    id: "seed-2",
+    role: "user",
+    body: "I want the plan to be realistic. Do not overload the week just because something is important.",
+  },
+  {
+    id: "seed-3",
+    role: "agent",
+    meta: "Proposal ready",
+    body:
+      "Then the right move is to protect fewer blocks and make them survive. I would rather fully protect three credible sessions than draft seven that get renegotiated away.",
+  },
+];
+
+const WORK_CHAT_PROMPTS = [
+  "What should I focus on this week?",
+  "Review the schedule proposal",
+  "Should we park something?",
+  "Break this into smaller tasks",
+];
+
 export function CalendarShell() {
   const calendarRef = useRef<FullCalendar | null>(null);
+  const jarvisThreadRef = useRef<HTMLDivElement | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("calendar");
   const [selectedDate, setSelectedDate] = useState(new Date("2026-03-18T09:00:00"));
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -287,6 +267,8 @@ export function CalendarShell() {
   const [expandedProjectIds, setExpandedProjectIds] = useState<string[]>([
     WORK_AREAS[0].projects[0].id,
   ]);
+  const [chatInput, setChatInput] = useState("");
+  const [workChat, setWorkChat] = useState<AgentChatMessage[]>(WORK_CHAT_SEED);
 
   const selectedProject =
     WORK_AREAS.flatMap((area) => area.projects).find((project) => project.id === selectedProjectId) ??
@@ -345,6 +327,32 @@ export function CalendarShell() {
     );
   }
 
+  function appendChatMessage(message: AgentChatMessage) {
+    setWorkChat((current) => [...current, message]);
+  }
+
+  function sendChatMessage(body: string) {
+    const trimmed = body.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    appendChatMessage({
+      id: `user-${Date.now()}`,
+      role: "user",
+      body: trimmed,
+    });
+
+    appendChatMessage({
+      id: `agent-${Date.now() + 1}`,
+      role: "agent",
+      meta: `${selectedProject.name} context`,
+      body: buildAgentReply(selectedProject, trimmed),
+    });
+
+    setChatInput("");
+  }
+
   useEffect(() => {
     if (!isCreateModalOpen) {
       return;
@@ -386,6 +394,22 @@ export function CalendarShell() {
       cancelled = true;
     };
   }, [currentRange]);
+
+  useEffect(() => {
+    if (activeTab !== "jarvis") {
+      return;
+    }
+
+    const thread = jarvisThreadRef.current;
+    if (!thread) {
+      return;
+    }
+
+    thread.scrollTo({
+      top: thread.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [activeTab, workChat]);
 
   function openCreateModal() {
     setEventDraft(emptyDraft(toDateInputValue(selectedDate)));
@@ -577,6 +601,14 @@ export function CalendarShell() {
                 >
                   Calendar
                 </button>
+                <button
+                  className="nav-item"
+                  data-active={activeTab === "jarvis"}
+                  type="button"
+                  onClick={() => setActiveTab("jarvis")}
+                >
+                  Jarvis
+                </button>
               </nav>
             </div>
           </div>
@@ -736,29 +768,144 @@ export function CalendarShell() {
                       <div className="coach-bubble">{selectedProject.assessment}</div>
                     </div>
 
-                    <div className="agent-card-list">
-                      {selectedProject.actionCards.map((card) => (
-                        <article
-                          key={card.id}
-                          className="agent-action-card"
-                          data-tone={card.tone}
-                        >
-                          <p className="agent-card-type">{card.type}</p>
-                          <h2 className="agent-card-title">{card.title}</h2>
-                          <p className="agent-card-body">{card.body}</p>
-                          <button className="ghost-button full-width-button" type="button">
-                            {card.cta}
-                          </button>
-                        </article>
-                      ))}
+                    <div className="agent-panel-section">
+                      <p className="section-title">Suggested next moves</p>
+                      <button className="ghost-button full-width-button" type="button">
+                        Review schedule proposal
+                      </button>
+                      <button className="ghost-button full-width-button" type="button">
+                        Break into smaller tasks
+                      </button>
                     </div>
 
-                    <button className="primary-button full-width-button" type="button">
-                      Brainstorm with agent
+                    <button
+                      className="primary-button full-width-button"
+                      type="button"
+                      onClick={() => setActiveTab("jarvis")}
+                    >
+                      Open in Jarvis
                     </button>
                   </section>
                 </div>
               </aside>
+            </div>
+          ) : activeTab === "jarvis" ? (
+            <div className="jarvis-layout">
+              <aside className="jarvis-sidebar">
+                <section className="jarvis-tree">
+                  <div className="jarvis-tree-scroll">
+                    {WORK_AREAS.map((area) => (
+                      <section key={area.id} className="area-section">
+                        <p className="area-title">{area.name}</p>
+                        <div className="project-list">
+                          {area.projects.map((project) => (
+                            <div
+                              key={project.id}
+                              className="jarvis-tree-project"
+                              data-active={project.id === selectedProject.id || undefined}
+                            >
+                              <div className="jarvis-project-header">
+                                <button
+                                  type="button"
+                                  className="project-nav-item jarvis-project-button"
+                                  data-active={project.id === selectedProject.id || undefined}
+                                  onClick={() => setSelectedProjectId(project.id)}
+                                >
+                                  <span
+                                    className="priority-dot"
+                                    data-priority={project.priority}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="project-nav-copy">
+                                    <span className="project-nav-name">{project.name}</span>
+                                    <span className="project-nav-meta">
+                                      {project.agentStatus} · {project.lastWorkedOn}
+                                    </span>
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="jarvis-collapse-button"
+                                  onClick={() => toggleProjectExpansion(project.id)}
+                                  aria-label={
+                                    expandedProjectIds.includes(project.id)
+                                      ? `Collapse ${project.name}`
+                                      : `Expand ${project.name}`
+                                  }
+                                >
+                                  {expandedProjectIds.includes(project.id) ? "−" : "+"}
+                                </button>
+                              </div>
+                              {expandedProjectIds.includes(project.id) ? (
+                                <div className="jarvis-task-tree">
+                                  {project.tasks.map((task) => (
+                                    <div key={task.id} className="jarvis-task-node" data-state={task.status}>
+                                      <span className="jarvis-task-bullet" aria-hidden="true" />
+                                      <span className="jarvis-task-label">{task.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </section>
+              </aside>
+
+              <section className="jarvis-main">
+                <div className="jarvis-stage">
+                  <div ref={jarvisThreadRef} className="jarvis-chat-thread">
+                    {workChat.map((message) => (
+                        <article
+                          key={message.id}
+                          className="chat-message"
+                          data-role={message.role}
+                        >
+                          <div className="chat-message-head">
+                            <span />
+                            {message.meta ? <span className="chat-message-meta">{message.meta}</span> : null}
+                          </div>
+                          <p className="chat-message-body">{message.body}</p>
+                        </article>
+                    ))}
+                  </div>
+
+                  <div className="chat-quick-prompts jarvis-prompts">
+                    {WORK_CHAT_PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt}
+                        className="ghost-button chat-prompt-chip"
+                        type="button"
+                        onClick={() => sendChatMessage(prompt)}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <form
+                    className="jarvis-composer"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      sendChatMessage(chatInput);
+                    }}
+                  >
+                    <textarea
+                      className="field-input jarvis-input"
+                      value={chatInput}
+                      onChange={(event) => setChatInput(event.target.value)}
+                      placeholder="Message Jarvis"
+                      rows={1}
+                    />
+                    <button className="primary-button jarvis-send-button" type="submit">
+                      Send
+                    </button>
+                  </form>
+                </div>
+              </section>
             </div>
           ) : (
             <div className="three-column-layout">
@@ -1155,6 +1302,24 @@ function toneForAgentStatus(status: WorkProject["agentStatus"]): AgentCardTone {
   }
 
   return "warn";
+}
+
+function buildAgentReply(project: WorkProject, prompt: string): string {
+  const lowerPrompt = prompt.toLowerCase();
+
+  if (lowerPrompt.includes("park")) {
+    return `If we park ${project.name}, I would keep one tiny re-entry task and remove the rest from this week. That reduces guilt and makes the decision real.`;
+  }
+
+  if (lowerPrompt.includes("schedule") || lowerPrompt.includes("time")) {
+    return `For ${project.name}, I would place the hardest task in a Morning window, then use one shorter Midday block for cleanup work. That keeps the plan credible instead of crowded.`;
+  }
+
+  if (lowerPrompt.includes("smaller") || lowerPrompt.includes("break")) {
+    return `I would split the next step into two pieces under 30 minutes each. Right now the project is paying a startup cost every time you look at it.`;
+  }
+
+  return `My take on ${project.name}: protect the next meaningful step, not the entire ambition. The plan should feel slightly firm, not heroic.`;
 }
 
 function toDateInputValue(date: Date): string {

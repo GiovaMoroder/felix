@@ -216,6 +216,177 @@ select:disabled {
   align-content: start;
 }
 
+.jarvis-layout {
+  display: grid;
+  grid-template-columns: 292px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+
+.jarvis-sidebar,
+.jarvis-main {
+  min-width: 0;
+}
+
+.jarvis-main {
+  display: grid;
+}
+
+.jarvis-sidebar {
+  display: grid;
+  align-content: start;
+  padding-right: 24px;
+  border-right: 1px solid var(--border);
+  align-self: start;
+}
+
+.jarvis-tree,
+.jarvis-stage {
+  width: 100%;
+  min-height: calc(100vh - 132px);
+}
+
+.jarvis-tree {
+  display: grid;
+  gap: 12px;
+  padding-right: 24px;
+  align-content: start;
+  position: sticky;
+  top: 18px;
+}
+
+.jarvis-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.jarvis-tree-scroll {
+  display: grid;
+  gap: 12px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.jarvis-tree-project {
+  display: grid;
+  gap: 8px;
+}
+
+.jarvis-project-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 8px;
+  align-items: start;
+}
+
+.jarvis-project-button {
+  padding: 10px;
+}
+
+.jarvis-collapse-button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.jarvis-collapse-button:hover {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.jarvis-task-tree {
+  display: grid;
+  gap: 6px;
+  padding-left: 18px;
+}
+
+.jarvis-task-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted2);
+  font-size: 12px;
+}
+
+.jarvis-task-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border2);
+}
+
+.jarvis-task-node[data-state="scheduled"] .jarvis-task-bullet {
+  background: var(--info);
+}
+
+.jarvis-task-node[data-state="overdue"] .jarvis-task-bullet {
+  background: var(--danger);
+}
+
+.jarvis-task-node[data-state="done"] .jarvis-task-bullet {
+  background: var(--accent);
+}
+
+.jarvis-stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  padding: 0 48px;
+  background: transparent;
+}
+
+.jarvis-chat-thread {
+  display: grid;
+  gap: 44px;
+  height: min(720px, calc(100vh - 260px));
+  overflow: auto;
+  padding: 12px 0 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+  justify-items: center;
+}
+
+.jarvis-prompts {
+  justify-content: center;
+}
+
+.jarvis-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0;
+  width: min(100%, 680px);
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #141414;
+  position: sticky;
+  bottom: 24px;
+}
+
+.jarvis-input {
+  min-height: 48px;
+  height: 48px;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.jarvis-send-button {
+  align-self: stretch;
+  border-radius: 0;
+  border-left: 1px solid var(--border2);
+}
+
 .panel,
 .mini-calendar,
 .context-card,
@@ -315,7 +486,6 @@ select:disabled {
 
 .area-list,
 .project-list,
-.agent-card-list,
 .work-task-list,
 .work-project-stream,
 .task-list-group,
@@ -343,10 +513,10 @@ select:disabled {
   gap: 10px;
   align-items: start;
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg3);
+  background: transparent;
   color: var(--text);
   cursor: pointer;
   text-align: left;
@@ -358,7 +528,7 @@ select:disabled {
 }
 
 .project-nav-item[data-active="true"] {
-  background: #202020;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .project-nav-copy {
@@ -581,37 +751,25 @@ select:disabled {
   justify-content: center;
 }
 
-.agent-panel-section {
+.work-chat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.work-chat-title {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.work-chat-context {
   display: grid;
-  gap: 8px;
+  justify-items: end;
+  gap: 6px;
 }
 
-.agent-action-card {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg3);
-}
-
-.agent-action-card[data-tone="accent"] {
-  border-color: rgba(200, 240, 96, 0.28);
-}
-
-.agent-action-card[data-tone="warn"] {
-  border-color: rgba(255, 179, 71, 0.28);
-}
-
-.agent-action-card[data-tone="danger"] {
-  border-color: rgba(255, 107, 107, 0.28);
-}
-
-.agent-action-card[data-tone="info"] {
-  border-color: rgba(96, 184, 240, 0.28);
-}
-
-.agent-card-type {
+.work-chat-context-label {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 10px;
@@ -619,13 +777,127 @@ select:disabled {
   text-transform: uppercase;
 }
 
-.agent-card-title {
-  font-size: 16px;
-  line-height: 1.2;
+.work-chat-summary {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg3);
+  color: var(--muted2);
 }
 
-.agent-card-body {
+.work-chat-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 520px;
+  overflow: auto;
+  padding: 4px 4px 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.chat-message {
+  display: grid;
+  gap: 24px;
+  width: min(100%, 680px);
+  justify-self: center;
+}
+
+.chat-message[data-role="user"] {
+  display: inline-block;
+  width: auto;
+  max-width: min(50%, 320px);
+  justify-self: end;
+  min-height: 0;
+  padding: 12px 16px;
+  border: 1px solid rgba(200, 240, 96, 0.28);
+  border-radius: 16px;
+  background: rgba(200, 240, 96, 0.12);
+  align-self: flex-start;
+}
+
+.chat-message[data-role="user"] .chat-message-head {
+  display: none;
+}
+
+.chat-message[data-role="user"] .chat-message-body {
+  line-height: 1.6;
+}
+
+.chat-message[data-role="agent"] {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.chat-message-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-message-author {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chat-message-meta {
   color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chat-message-body {
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.chat-message[data-role="agent"] .chat-message-body {
+  max-width: 68ch;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.chat-quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: min(100%, 680px);
+  margin: 0 auto;
+}
+
+.chat-prompt-chip {
+  height: 32px;
+  padding: 0 12px;
+}
+
+.work-chat-composer {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #141414;
+}
+
+.work-chat-input {
+  min-height: 88px;
+  resize: vertical;
+  border-radius: 12px;
+}
+
+.work-chat-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .focus-chip-row {
@@ -1050,6 +1322,7 @@ select:disabled {
   }
 
   .topbar-shell,
+  .jarvis-layout,
   .three-column-layout {
     grid-template-columns: 1fr;
   }
@@ -1092,6 +1365,38 @@ select:disabled {
     display: grid;
   }
 
+  .jarvis-stage {
+    padding: 0 16px;
+  }
+
+  .jarvis-composer {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .jarvis-sidebar {
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .jarvis-tree {
+    padding-right: 0;
+  }
+
+  .work-chat-header,
+  .work-chat-actions {
+    display: grid;
+  }
+
+  .chat-message[data-role="user"],
+  .chat-message[data-role="agent"] {
+    width: 100%;
+  }
+
+  .work-chat-context {
+    justify-items: start;
+  }
+
   .calendar-header,
   .modal-header,
   .modal-actions {
@@ -1113,8 +1418,13 @@ select:disabled {
   }
 
   .topbar-shell,
+  .jarvis-layout,
   .three-column-layout {
     grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .jarvis-layout {
+    grid-template-columns: 292px minmax(0, 1fr);
   }
 
   .topbar {
