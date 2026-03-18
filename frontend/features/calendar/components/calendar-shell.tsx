@@ -76,6 +76,15 @@ export function CalendarShell() {
     syncCalendarDate(nextDate);
   }
 
+  function scrollCalendarToTime(time: string) {
+    const api = calendarRef.current?.getApi();
+    if (!api) {
+      return;
+    }
+
+    api.scrollToTime(time);
+  }
+
   useEffect(() => {
     if (!isCreateModalOpen) {
       return;
@@ -288,157 +297,202 @@ export function CalendarShell() {
     <>
       <main className="app-shell">
         <div className="workspace">
-          <aside className="panel left-rail">
-          <div className="brand">Productivity Agent</div>
-          <div className="left-stack">
-            <div className="nav-group">
-              <button className="nav-item" data-active="true">Calendar</button>
-              <button className="nav-item" data-active="false">Projects</button>
-              <button className="nav-item" data-active="false">Tasks</button>
-              <button className="nav-item" data-active="false">Planning</button>
+          <div className="topbar-shell">
+            <div className="topbar">
+              <div className="brand">Productivity Agent</div>
+              <nav className="nav-group" aria-label="Primary navigation">
+                <button className="nav-item" data-active="false" type="button">Work</button>
+                <button className="nav-item" data-active="true" type="button">Calendar</button>
+              </nav>
             </div>
+          </div>
 
-            <section className="mini-calendar">
-              <div className="mini-calendar-header">
-                <p className="rail-title">
-                  {selectedDate.toLocaleString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </p>
-                <div className="mini-calendar-controls">
+          <div className="three-column-layout">
+            <aside className="left-rail">
+              <div className="left-stack">
+                <section className="panel-card mini-calendar">
+                  <div className="mini-calendar-header">
+                    <p className="rail-title">
+                      {selectedDate.toLocaleString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
+                    <div className="mini-calendar-controls">
+                      <button
+                        className="mini-calendar-button"
+                        type="button"
+                        onClick={() => shiftMiniCalendar(-1)}
+                        aria-label="Previous month"
+                      >
+                        ←
+                      </button>
+                      <button
+                        className="mini-calendar-button"
+                        type="button"
+                        onClick={() => shiftMiniCalendar(1)}
+                        aria-label="Next month"
+                      >
+                        →
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mini-calendar-grid">
+                    <div className="mini-weekday">M</div>
+                    <div className="mini-weekday">T</div>
+                    <div className="mini-weekday">W</div>
+                    <div className="mini-weekday">T</div>
+                    <div className="mini-weekday">F</div>
+                    <div className="mini-weekday">S</div>
+                    <div className="mini-weekday">S</div>
+                    {miniCalendarDays.map((day, index) => {
+                      const label = day?.getDate() ?? "";
+                      const isActive =
+                        day !== null &&
+                        day.toDateString() === selectedDate.toDateString();
+
+                      return (
+                        <button
+                          key={day?.toISOString() ?? `empty-${index}`}
+                          type="button"
+                          className="mini-cell"
+                          data-active={isActive || undefined}
+                          data-empty={day === null || undefined}
+                          onClick={() => day && syncCalendarDate(day)}
+                          disabled={day === null}
+                          aria-label={day ? day.toDateString() : "Empty day"}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="panel-card">
+                  <p className="coach-label">AI Coach</p>
+                  <div className="coach-bubble">
+                    Real calendar mechanics first. The assistant should protect focus blocks,
+                    not create more activity around them.
+                  </div>
+                </section>
+              </div>
+            </aside>
+
+            <section className="calendar-card main-column">
+              <div className="calendar-focus-bar" aria-label="Calendar focus shortcuts">
+                <p className="section-title">Focus Hours</p>
+                <div className="focus-chip-row">
                   <button
-                    className="mini-calendar-button"
+                    className="ghost-button focus-chip"
                     type="button"
-                    onClick={() => shiftMiniCalendar(-1)}
-                    aria-label="Previous month"
+                    onClick={() => scrollCalendarToTime(currentTimeScrollTarget())}
                   >
-                    ←
+                    Now
                   </button>
                   <button
-                    className="mini-calendar-button"
+                    className="ghost-button focus-chip"
                     type="button"
-                    onClick={() => shiftMiniCalendar(1)}
-                    aria-label="Next month"
+                    onClick={() => scrollCalendarToTime("08:00:00")}
                   >
-                    →
+                    Morning
+                  </button>
+                  <button
+                    className="ghost-button focus-chip"
+                    type="button"
+                    onClick={() => scrollCalendarToTime("12:00:00")}
+                  >
+                    Midday
+                  </button>
+                  <button
+                    className="ghost-button focus-chip"
+                    type="button"
+                    onClick={() => scrollCalendarToTime("18:00:00")}
+                  >
+                    Evening
                   </button>
                 </div>
               </div>
-              <div className="mini-calendar-grid">
-                <div className="mini-weekday">M</div>
-                <div className="mini-weekday">T</div>
-                <div className="mini-weekday">W</div>
-                <div className="mini-weekday">T</div>
-                <div className="mini-weekday">F</div>
-                <div className="mini-weekday">S</div>
-                <div className="mini-weekday">S</div>
-                {miniCalendarDays.map((day, index) => {
-                  const label = day?.getDate() ?? "";
-                  const isActive =
-                    day !== null &&
-                    day.toDateString() === selectedDate.toDateString();
 
-                  return (
-                    <button
-                      key={day?.toISOString() ?? `empty-${index}`}
-                      type="button"
-                      className="mini-cell"
-                      data-active={isActive || undefined}
-                      data-empty={day === null || undefined}
-                      onClick={() => day && syncCalendarDate(day)}
-                      disabled={day === null}
-                      aria-label={day ? day.toDateString() : "Empty day"}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-          </aside>
+              {(calendarError || isLoadingEvents) ? (
+                <div className="status-row">
+                  {isLoadingEvents ? (
+                    <span className="status-item status-item-loading">Loading events…</span>
+                  ) : null}
+                  {calendarError ? <span>{calendarError}</span> : null}
+                </div>
+              ) : null}
 
-          <section className="panel calendar-card">
-            <header className="calendar-header">
-              <div>
-                <p className="eyebrow">Personal Operating System</p>
-                <h1 className="headline">Your week, with less friction.</h1>
-                <p className="subheadline">
-                  Real calendar mechanics first. The AI layer sits on top of that, not instead of it.
-                </p>
-              </div>
-              <button className="primary-button" type="button" onClick={openCreateModal}>
-                New event
-              </button>
-            </header>
-
-            {(calendarError || isLoadingEvents) ? (
-              <div className="status-row">
-                {isLoadingEvents ? <span>Loading events…</span> : null}
-                {calendarError ? <span>{calendarError}</span> : null}
-              </div>
-            ) : null}
-
-            <div className="calendar-frame">
-              <FullCalendar
-                ref={calendarRef}
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView="timeGridWeek"
-                initialDate={selectedDate}
-                headerToolbar={{
-                  left: "prev,next today",
-                  center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay",
-                }}
-                editable
-                selectable
-                selectMirror
-                nowIndicator
+              <div className="calendar-frame">
+                <FullCalendar
+                  ref={calendarRef}
+                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                  initialView="timeGridWeek"
+                  initialDate={selectedDate}
+                  headerToolbar={{
+                    left: "prev,next today newEvent",
+                    center: "title",
+                    right: "dayGridMonth,timeGridWeek,timeGridDay",
+                  }}
+                  customButtons={{
+                    newEvent: {
+                      text: "New event",
+                      click: openCreateModal,
+                    },
+                  }}
+                  editable
+                  selectable
+                  selectMirror
+                  nowIndicator
                 allDaySlot
                 slotDuration="01:00:00"
+                slotLabelInterval="01:00:00"
+                snapDuration="00:15:00"
                 slotMinTime="00:00:00"
                 slotMaxTime="24:00:00"
-                scrollTime="08:00:00"
-                scrollTimeReset={false}
+                scrollTime="09:00:00"
+                scrollTimeReset
                 events={events}
-                eventClick={handleEventClick}
-                dateClick={handleDateClick}
-                select={handleSelect}
-                eventDrop={handleEventChange}
-                eventResize={handleEventChange}
-                height="78vh"
-                datesSet={handleDatesSet}
-              />
-            </div>
-          </section>
-
-          <aside className="panel right-rail">
-          <div className="right-stack">
-            <section className="command-card">
-              <p className="section-title">Command</p>
-              <input
-                className="command-input"
-                defaultValue="Move the doctor appointment to tomorrow at 11."
-                aria-label="Natural language command"
-              />
-            </section>
-
-            <section className="context-card">
-              <p className="section-title">Today</p>
-              <div className="context-list">
-                <div className="context-item">
-                  <strong>Protect 10:00 to 12:00</strong>
-                  <p>This is your cleanest focus window. Keep meetings out unless the cost is real.</p>
-                </div>
-                <div className="context-item">
-                  <strong>One unscheduled priority</strong>
-                  <p>Convert “Draft weekly review” into a 45 minute block this afternoon.</p>
-                </div>
+                  eventClick={handleEventClick}
+                  dateClick={handleDateClick}
+                  select={handleSelect}
+                  eventDrop={handleEventChange}
+                  eventResize={handleEventChange}
+                  height="78vh"
+                  datesSet={handleDatesSet}
+                />
               </div>
             </section>
+
+            <aside className="right-rail">
+              <div className="right-stack">
+                <section className="command-card">
+                  <p className="section-title">Command</p>
+                  <input
+                    className="command-input"
+                    defaultValue="Move the doctor appointment to tomorrow at 11."
+                    aria-label="Natural language command"
+                  />
+                </section>
+
+                <section className="context-card">
+                  <p className="section-title">Today</p>
+                  <div className="context-list">
+                    <div className="context-item">
+                      <strong>Protect 10:00 to 12:00</strong>
+                      <p>
+                        This is your cleanest focus window. Keep meetings out unless the cost is real.
+                      </p>
+                    </div>
+                    <div className="context-item">
+                      <strong>One unscheduled priority</strong>
+                      <p>Convert “Draft weekly review” into a 45 minute block this afternoon.</p>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </aside>
           </div>
-          </aside>
         </div>
       </main>
 
@@ -454,7 +508,9 @@ export function CalendarShell() {
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Calendar</p>
-                <h2 id="create-event-title" className="modal-title">Create event</h2>
+                <h2 id="create-event-title" className="modal-title">
+                  {eventDraft.id ? "Edit event" : "Create event"}
+                </h2>
               </div>
               <button className="ghost-button" type="button" onClick={closeCreateModal}>
                 Close
@@ -637,6 +693,13 @@ function emptyDraft(date: string): EventDraft {
     notes: "",
     allDay: false,
   };
+}
+
+function currentTimeScrollTarget(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}:00`;
 }
 
 function addHour(date: Date): Date {
