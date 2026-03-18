@@ -579,7 +579,7 @@ export function CalendarShell() {
 
   return (
     <>
-      <main className="app-shell">
+      <main className="app-shell" data-active-tab={activeTab}>
         <div className="workspace">
           <div className="topbar-shell">
             <div className="topbar">
@@ -858,19 +858,25 @@ export function CalendarShell() {
               <section className="jarvis-main">
                 <div className="jarvis-stage">
                   <div ref={jarvisThreadRef} className="jarvis-chat-thread">
-                    {workChat.map((message) => (
-                        <article
-                          key={message.id}
-                          className="chat-message"
-                          data-role={message.role}
-                        >
+                    {workChat.map((message) =>
+                      message.role === "user" ? (
+                        <article key={message.id} className="chat-message" data-role="user">
+                          <div className="chat-bubble">
+                            <p className="chat-message-body">{message.body}</p>
+                          </div>
+                        </article>
+                      ) : (
+                        <article key={message.id} className="chat-message" data-role="agent">
                           <div className="chat-message-head">
                             <span />
-                            {message.meta ? <span className="chat-message-meta">{message.meta}</span> : null}
+                            {message.meta ? (
+                              <span className="chat-message-meta">{message.meta}</span>
+                            ) : null}
                           </div>
                           <p className="chat-message-body">{message.body}</p>
                         </article>
-                    ))}
+                      ),
+                    )}
                   </div>
 
                   <div className="chat-quick-prompts jarvis-prompts">
