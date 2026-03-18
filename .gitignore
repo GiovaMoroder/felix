@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+.idea/
+.venv/
+*.db
+frontend/.next/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
+services/planning/.venv/
+services/planning/src/*.egg-info/
