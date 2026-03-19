@@ -26,6 +26,11 @@ The scaffold is intentionally minimal:
     └── planning/
 ```
 
+## Folder Guides
+
+- [frontend/README.md](frontend/README.md) explains the Next.js app, its main screens, and frontend environment settings
+- [services/planning/README.md](services/planning/README.md) explains the FastAPI service, API routes, database setup, and agent configuration
+
 ## Local Development
 
 Frontend:
