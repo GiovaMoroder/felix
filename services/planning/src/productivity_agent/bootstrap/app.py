@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from productivity_agent.infrastructure.db.base import create_schema
+from productivity_agent.interfaces.api.agent import router as agent_router
 from productivity_agent.interfaces.api.events import router as events_router
+from productivity_agent.interfaces.api.work import router as work_router
 
 
 def create_app() -> FastAPI:
@@ -24,4 +26,6 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(events_router, prefix="/api")
+    app.include_router(work_router, prefix="/api")
+    app.include_router(agent_router, prefix="/api")
     return app

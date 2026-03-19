@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _parse_dt(value: str) -> datetime:
+    dt = datetime.fromisoformat(value)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -63,8 +68,8 @@ class SqlAlchemyCalendarEventRepository:
             id=row.id,
             title=row.title,
             time_range=TimeRange(
-                start=datetime.fromisoformat(row.start_at),
-                end=datetime.fromisoformat(row.end_at),
+                start=_parse_dt(row.start_at),
+                end=_parse_dt(row.end_at),
             ),
             notes=row.notes,
             all_day=row.all_day,

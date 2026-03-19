@@ -419,6 +419,13 @@ select:disabled {
   width: 100%;
 }
 
+.work-sidebar {
+  --sidebar-section-gap: 14px;
+  --sidebar-card-gap: 10px;
+  --sidebar-label-gap-top: 6px;
+  --sidebar-label-gap-bottom: 4px;
+}
+
 .section-title,
 .rail-title,
 .eyebrow,
@@ -504,9 +511,26 @@ select:disabled {
   gap: 10px;
 }
 
+.work-sidebar .area-list {
+  gap: var(--sidebar-section-gap);
+}
+
+.work-sidebar .project-list {
+  gap: var(--sidebar-card-gap);
+}
+
 .area-section {
   display: grid;
   gap: 8px;
+}
+
+.work-sidebar .area-section {
+  gap: var(--sidebar-label-gap-bottom);
+}
+
+.work-sidebar > .section-title {
+  margin-top: var(--sidebar-label-gap-top);
+  margin-bottom: var(--sidebar-label-gap-bottom);
 }
 
 .area-title {
@@ -517,13 +541,19 @@ select:disabled {
   text-transform: uppercase;
 }
 
+.work-sidebar .area-title {
+  margin-top: var(--sidebar-label-gap-top);
+  margin-bottom: var(--sidebar-label-gap-bottom);
+}
+
 .project-nav-item {
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr);
   gap: 10px;
-  align-items: start;
+  align-items: center;
   width: 100%;
-  padding: 10px;
+  min-height: 64px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: transparent;
@@ -543,7 +573,9 @@ select:disabled {
 
 .project-nav-copy {
   display: grid;
-  gap: 4px;
+  gap: 3px;
+  align-content: center;
+  min-width: 0;
 }
 
 .project-nav-name {
@@ -558,9 +590,9 @@ select:disabled {
 .priority-dot {
   width: 8px;
   height: 8px;
-  margin-top: 6px;
   border-radius: 999px;
   background: var(--muted);
+  align-self: center;
 }
 
 .priority-dot[data-priority="high"] {
@@ -617,6 +649,12 @@ select:disabled {
 
 .project-accordion-card[data-active="true"] {
   border-color: var(--border2);
+}
+
+.project-accordion-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
 }
 
 .project-accordion-header {
@@ -686,7 +724,7 @@ select:disabled {
 
 .task-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto 32px;
   gap: 12px;
   align-items: center;
   padding: 13px 14px;
@@ -759,6 +797,32 @@ select:disabled {
 .full-width-button {
   width: 100%;
   justify-content: center;
+}
+
+.work-sidebar .full-width-button {
+  margin-top: var(--sidebar-card-gap);
+  min-height: 44px;
+}
+
+.item-menu-button {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted2);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.item-menu-button:hover {
+  color: var(--text);
+  border-color: var(--border2);
+  background: var(--bg3);
 }
 
 .work-chat-header {
@@ -876,6 +940,132 @@ select:disabled {
   color: var(--text);
   font-size: 15px;
   line-height: 1.7;
+}
+
+.chat-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.chat-loader-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: chat-dot-bounce 0.9s ease-in-out infinite;
+}
+
+.chat-loader-dot:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.chat-loader-dot:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.agent-insight-grid {
+  display: grid;
+  gap: 10px;
+  max-width: 68ch;
+}
+
+.agent-insight-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.agent-insight-title {
+  margin-bottom: 4px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-insight-body {
+  color: var(--muted2);
+  line-height: 1.6;
+}
+
+.agent-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 68ch;
+}
+
+.schedule-proposal-card {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 68ch);
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.schedule-proposal-card[data-committed="true"] {
+  border-color: rgba(200, 240, 96, 0.26);
+  background: rgba(200, 240, 96, 0.08);
+}
+
+.schedule-proposal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.schedule-proposal-label,
+.schedule-proposal-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schedule-proposal-label {
+  color: var(--text);
+}
+
+.schedule-proposal-meta {
+  color: var(--muted2);
+}
+
+.schedule-proposal-list {
+  display: grid;
+  gap: 8px;
+}
+
+.schedule-proposal-item {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.schedule-proposal-item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.schedule-proposal-task {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.schedule-proposal-time,
+.schedule-proposal-empty {
+  color: var(--muted2);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .chat-quick-prompts {
@@ -1245,6 +1435,37 @@ select:disabled {
   z-index: 1000;
 }
 
+.context-menu {
+  position: fixed;
+  z-index: 1100;
+  min-width: 190px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  background: #121212;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+
+.context-menu-item {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: var(--bg3);
+}
+
+.context-menu-item-danger {
+  color: var(--danger);
+}
+
 .modal-panel {
   width: min(560px, 100%);
   background: var(--bg2);
@@ -1314,6 +1535,20 @@ select:disabled {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes chat-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
   }
 }
 

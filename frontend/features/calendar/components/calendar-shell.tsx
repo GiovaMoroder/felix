@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import type {
   DateSelectArg,
@@ -20,6 +20,25 @@ import {
   type CalendarEventRecord,
   updateCalendarEvent,
 } from "@/features/calendar/lib/calendar-api";
+import {
+  breakDownWorkTask,
+  createWorkProject,
+  createWorkTask,
+  deleteWorkProject,
+  deleteWorkTask,
+  type AgentAction,
+  type AgentInsight,
+  type AgentResponse,
+  fetchWorkAreas,
+  requestScheduleProposal,
+  respondToAgent,
+  type ScheduleProposal,
+  type WorkAreaRecord,
+  type WorkProjectRecord,
+  type WorkTaskRecord,
+  updateWorkProject,
+  updateWorkTask,
+} from "@/features/calendar/lib/work-api";
 
 type EventDraft = {
   id: string | null;
@@ -33,216 +52,50 @@ type EventDraft = {
 
 type EditorMode = "quick" | "full";
 type AppTab = "work" | "calendar" | "jarvis";
-type WorkProjectStatus = "active" | "parked" | "done";
-type WorkPriority = "high" | "medium" | "low";
-type WorkTaskStatus = "todo" | "scheduled" | "overdue" | "done";
 type AgentCardTone = "accent" | "warn" | "danger" | "info";
 type ChatRole = "agent" | "user";
-
-type WorkTask = {
-  id: string;
-  name: string;
-  estimateMinutes: number;
-  status: WorkTaskStatus;
-  scheduledLabel?: string;
-};
 
 type AgentChatMessage = {
   id: string;
   role: ChatRole;
   body: string;
   meta?: string;
+  insights?: AgentInsight[];
+  actions?: AgentAction[];
+  proposal?: ScheduleProposal | null;
 };
 
-type WorkProject = {
-  id: string;
+type ProjectModalState = {
+  mode: "create" | "edit";
+  projectId: string | null;
   name: string;
   areaId: string;
-  priority: WorkPriority;
-  status: WorkProjectStatus;
-  softDeadline?: string;
-  lastWorkedOn: string;
-  agentStatus: "Active" | "Neglected" | "On track" | "Parked";
-  assessment: string;
-  tasks: WorkTask[];
+  softDeadline: string;
 };
 
-type WorkArea = {
-  id: string;
+type TaskModalState = {
+  mode: "create" | "edit";
+  projectId: string;
+  taskId: string | null;
   name: string;
-  projects: WorkProject[];
+  estimateMinutes: string;
 };
 
-const WORK_AREAS: WorkArea[] = [
-  {
-    id: "career",
-    name: "Career",
-    projects: [
-      {
-        id: "career-interview-loop",
-        name: "Interview Prep",
-        areaId: "career",
-        priority: "high",
-        status: "active",
-        softDeadline: "Apr 02",
-        lastWorkedOn: "2 days ago",
-        agentStatus: "Neglected",
-        assessment:
-          "This project matters, but the weekly plan is still too fragile. You have high-stakes tasks here and not enough protected time on the calendar yet.",
-        tasks: [
-          {
-            id: "task-system-design",
-            name: "Practice system design story",
-            estimateMinutes: 90,
-            status: "scheduled",
-            scheduledLabel: "Thu 09:00",
-          },
-          {
-            id: "task-mock-interview",
-            name: "Run mock interview with scorecard",
-            estimateMinutes: 60,
-            status: "todo",
-          },
-          {
-            id: "task-behavioral",
-            name: "Rewrite behavioral answers",
-            estimateMinutes: 45,
-            status: "overdue",
-          },
-          {
-            id: "task-company-brief",
-            name: "Read company brief and notes",
-            estimateMinutes: 30,
-            status: "done",
-          },
-        ],
-      },
-      {
-        id: "career-writing",
-        name: "Writing System",
-        areaId: "career",
-        priority: "medium",
-        status: "active",
-        softDeadline: "Apr 15",
-        lastWorkedOn: "Today",
-        agentStatus: "On track",
-        assessment:
-          "This one is healthy. The next move is consistency, not urgency, so the plan should stay light and repeatable.",
-        tasks: [
-          {
-            id: "task-outline",
-            name: "Outline essay #3",
-            estimateMinutes: 40,
-            status: "scheduled",
-            scheduledLabel: "Fri 12:30",
-          },
-          {
-            id: "task-edit",
-            name: "Edit previous draft",
-            estimateMinutes: 35,
-            status: "todo",
-          },
-          {
-            id: "task-publish",
-            name: "Publish and share notes",
-            estimateMinutes: 20,
-            status: "done",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "health",
-    name: "Health",
-    projects: [
-      {
-        id: "health-strength",
-        name: "Strength Reset",
-        areaId: "health",
-        priority: "low",
-        status: "active",
-        lastWorkedOn: "6 days ago",
-        agentStatus: "Neglected",
-        assessment:
-          "This project is at risk of becoming symbolic. Either it needs smaller entry tasks or it needs one protected recurring slot that actually survives the week.",
-        tasks: [
-          {
-            id: "task-gym-a",
-            name: "Gym session A",
-            estimateMinutes: 50,
-            status: "todo",
-          },
-          {
-            id: "task-gym-b",
-            name: "Gym session B",
-            estimateMinutes: 50,
-            status: "todo",
-          },
-          {
-            id: "task-mobility",
-            name: "Mobility reset",
-            estimateMinutes: 20,
-            status: "done",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "life",
-    name: "Life",
-    projects: [
-      {
-        id: "life-admin",
-        name: "Home Admin Reset",
-        areaId: "life",
-        priority: "medium",
-        status: "parked",
-        lastWorkedOn: "11 days ago",
-        agentStatus: "Parked",
-        assessment:
-          "Parking this is probably correct for now. If it becomes real again, the first step should be a tiny admin sweep rather than reopening the whole thing.",
-        tasks: [
-          {
-            id: "task-bills",
-            name: "Review recurring bills",
-            estimateMinutes: 25,
-            status: "todo",
-          },
-          {
-            id: "task-docs",
-            name: "Organize insurance docs",
-            estimateMinutes: 30,
-            status: "done",
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const WORK_CHAT_SEED: AgentChatMessage[] = [
-  {
-    id: "seed-1",
-    role: "agent",
-    meta: "Morning check-in",
-    body:
-      "Interview Prep is still the project most at risk. It has the highest urgency, but the week is not yet protected enough for it.",
-  },
-  {
-    id: "seed-2",
-    role: "user",
-    body: "I want the plan to be realistic. Do not overload the week just because something is important.",
-  },
-  {
-    id: "seed-3",
-    role: "agent",
-    meta: "Proposal ready",
-    body:
-      "Then the right move is to protect fewer blocks and make them survive. I would rather fully protect three credible sessions than draft seven that get renegotiated away.",
-  },
-];
+type ContextMenuState =
+  | {
+      kind: "project";
+      id: string;
+      projectId: string;
+      x: number;
+      y: number;
+    }
+  | {
+      kind: "task";
+      id: string;
+      projectId: string;
+      x: number;
+      y: number;
+    };
 
 const WORK_CHAT_PROMPTS = [
   "What should I focus on this week?",
@@ -263,20 +116,27 @@ export function CalendarShell() {
   const [currentRange, setCurrentRange] = useState<{ start: string; end: string } | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState(WORK_AREAS[0].projects[0].id);
-  const [expandedProjectIds, setExpandedProjectIds] = useState<string[]>([
-    WORK_AREAS[0].projects[0].id,
-  ]);
+  const [workAreas, setWorkAreas] = useState<WorkAreaRecord[]>([]);
+  const [isLoadingWork, setIsLoadingWork] = useState(true);
+  const [workError, setWorkError] = useState<string | null>(null);
+  const [workNotice, setWorkNotice] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [expandedProjectIds, setExpandedProjectIds] = useState<string[]>([]);
+  const [scheduleProposal, setScheduleProposal] = useState<ScheduleProposal | null>(null);
+  const [projectModal, setProjectModal] = useState<ProjectModalState | null>(null);
+  const [taskModal, setTaskModal] = useState<TaskModalState | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [chatInput, setChatInput] = useState("");
-  const [workChat, setWorkChat] = useState<AgentChatMessage[]>(WORK_CHAT_SEED);
+  const [workChat, setWorkChat] = useState<AgentChatMessage[]>([]);
+  const [isSendingChat, setIsSendingChat] = useState(false);
 
+  const allProjects = workAreas.flatMap((area) => area.projects);
   const selectedProject =
-    WORK_AREAS.flatMap((area) => area.projects).find((project) => project.id === selectedProjectId) ??
-    WORK_AREAS[0].projects[0];
+    allProjects.find((project) => project.id === selectedProjectId) ?? allProjects[0] ?? null;
   const visibleProjects =
-    WORK_AREAS.flatMap((area) => area.projects).filter((project) =>
-      selectedProject.areaId ? project.areaId === selectedProject.areaId : true,
-    );
+    selectedProject
+      ? allProjects.filter((project) => project.area_id === selectedProject.area_id)
+      : [];
 
   const monthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   const monthEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
@@ -327,13 +187,59 @@ export function CalendarShell() {
     );
   }
 
+  async function loadWorkData(options?: { preserveSelection?: boolean }) {
+    try {
+      setIsLoadingWork(true);
+      const areas = await fetchWorkAreas();
+      setWorkAreas(areas);
+      setWorkError(null);
+
+      const firstProjectId = areas[0]?.projects[0]?.id ?? null;
+      setExpandedProjectIds((current) => {
+        if (current.length > 0) {
+          return current;
+        }
+        return firstProjectId ? [firstProjectId] : [];
+      });
+
+      setSelectedProjectId((current) => {
+        if (options?.preserveSelection && current) {
+          const stillExists = areas.some((area) =>
+            area.projects.some((project) => project.id === current),
+          );
+          if (stillExists) {
+            return current;
+          }
+        }
+        return current ?? firstProjectId;
+      });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to load work data.");
+    } finally {
+      setIsLoadingWork(false);
+    }
+  }
+
+  async function reloadCalendarEvents() {
+    if (!currentRange) {
+      return;
+    }
+
+    try {
+      const records = await fetchCalendarEvents(currentRange.start, currentRange.end);
+      setEvents(records.map(toCalendarInput));
+    } catch (error) {
+      setCalendarError(error instanceof Error ? error.message : "Unable to load calendar events.");
+    }
+  }
+
   function appendChatMessage(message: AgentChatMessage) {
     setWorkChat((current) => [...current, message]);
   }
 
-  function sendChatMessage(body: string) {
+  async function sendChatMessage(body: string) {
     const trimmed = body.trim();
-    if (!trimmed) {
+    if (!trimmed || isSendingChat) {
       return;
     }
 
@@ -343,15 +249,41 @@ export function CalendarShell() {
       body: trimmed,
     });
 
-    appendChatMessage({
-      id: `agent-${Date.now() + 1}`,
-      role: "agent",
-      meta: `${selectedProject.name} context`,
-      body: buildAgentReply(selectedProject, trimmed),
-    });
-
     setChatInput("");
+
+    try {
+      setIsSendingChat(true);
+      const response = await respondToAgent({
+        message: trimmed,
+        project_id: selectedProject?.id,
+        now: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        range_start: currentRange?.start,
+        range_end: currentRange?.end,
+      });
+      const nextMessage = toAgentChatMessage(response, selectedProject?.id ?? null);
+      if (nextMessage.proposal) {
+        setScheduleProposal(nextMessage.proposal);
+      }
+      appendChatMessage(nextMessage);
+      await syncAgentSideEffects(response);
+      setWorkError(null);
+    } catch (error) {
+      appendChatMessage({
+        id: `agent-error-${Date.now()}`,
+        role: "agent",
+        meta: "Agent error",
+        body: error instanceof Error ? error.message : "Unable to reach the agent.",
+      });
+      setWorkError(error instanceof Error ? error.message : "Unable to reach the agent.");
+    } finally {
+      setIsSendingChat(false);
+    }
   }
+
+  useEffect(() => {
+    loadWorkData();
+  }, []);
 
   useEffect(() => {
     if (!isCreateModalOpen) {
@@ -396,6 +328,23 @@ export function CalendarShell() {
   }, [currentRange]);
 
   useEffect(() => {
+    if (!selectedProject) {
+      return;
+    }
+    setScheduleProposal((current) =>
+      current?.project_id === selectedProject.id ? current : null,
+    );
+  }, [selectedProject]);
+
+  useEffect(() => {
+    if (!selectedProject || workChat.length > 0) {
+      return;
+    }
+
+    void sendChatMessage("What should I focus on this week?");
+  }, [selectedProject, workChat.length]);
+
+  useEffect(() => {
     if (activeTab !== "jarvis") {
       return;
     }
@@ -410,6 +359,32 @@ export function CalendarShell() {
       behavior: "smooth",
     });
   }, [activeTab, workChat]);
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return;
+    }
+
+    function closeMenu() {
+      setContextMenu(null);
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setContextMenu(null);
+      }
+    }
+
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [contextMenu]);
 
   function openCreateModal() {
     setEventDraft(emptyDraft(toDateInputValue(selectedDate)));
@@ -577,6 +552,337 @@ export function CalendarShell() {
     setCalendarError(null);
   }
 
+  function openProjectCreateModal() {
+    const areaId = selectedProject?.area_id ?? workAreas[0]?.id;
+    if (!areaId) {
+      setWorkError("No area is available for a new project.");
+      return;
+    }
+
+    setProjectModal({
+      mode: "create",
+      projectId: null,
+      name: "",
+      areaId,
+      softDeadline: "",
+    });
+    setContextMenu(null);
+  }
+
+  function openProjectEditModal(project: WorkProjectRecord) {
+    setProjectModal({
+      mode: "edit",
+      projectId: project.id,
+      name: project.name,
+      areaId: project.area_id,
+      softDeadline: project.soft_deadline ?? "",
+    });
+    setContextMenu(null);
+  }
+
+  function openTaskCreateModal(projectId: string) {
+    setTaskModal({
+      mode: "create",
+      projectId,
+      taskId: null,
+      name: "",
+      estimateMinutes: "30",
+    });
+    setContextMenu(null);
+  }
+
+  function openTaskEditModal(projectId: string, task: WorkTaskRecord) {
+    setTaskModal({
+      mode: "edit",
+      projectId,
+      taskId: task.id,
+      name: task.name,
+      estimateMinutes: String(task.estimate_minutes),
+    });
+    setContextMenu(null);
+  }
+
+  function openContextMenu(
+    event: ReactMouseEvent<HTMLElement>,
+    payload: Omit<ContextMenuState, "x" | "y">,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      ...payload,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  async function handleProjectSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!projectModal) {
+      return;
+    }
+
+    try {
+      if (projectModal.mode === "create") {
+        const project = await createWorkProject({
+          name: projectModal.name,
+          area_id: projectModal.areaId,
+          soft_deadline: projectModal.softDeadline || null,
+        });
+        setWorkNotice(`Created ${project.name}.`);
+        setSelectedProjectId(project.id);
+        setExpandedProjectIds((current) => [...new Set([...current, project.id])]);
+      } else if (projectModal.projectId) {
+        await updateWorkProject(projectModal.projectId, {
+          name: projectModal.name,
+          area_id: projectModal.areaId,
+          soft_deadline: projectModal.softDeadline || null,
+        });
+        setWorkNotice("Project updated.");
+      }
+
+      setProjectModal(null);
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to save project.");
+    }
+  }
+
+  async function handleTaskSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!taskModal) {
+      return;
+    }
+
+    const estimateMinutes = Number(taskModal.estimateMinutes);
+    if (!Number.isFinite(estimateMinutes) || estimateMinutes <= 0) {
+      setWorkError("Estimate must be a positive number of minutes.");
+      return;
+    }
+
+    try {
+      if (taskModal.mode === "create") {
+        await createWorkTask(taskModal.projectId, {
+          name: taskModal.name,
+          estimate_minutes: estimateMinutes,
+        });
+        setWorkNotice("Task created.");
+      } else if (taskModal.taskId) {
+        await updateWorkTask(taskModal.taskId, {
+          name: taskModal.name,
+          estimate_minutes: estimateMinutes,
+        });
+        setWorkNotice("Task updated.");
+      }
+
+      setTaskModal(null);
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to save task.");
+    }
+  }
+
+  async function handleTaskToggle(task: WorkTaskRecord) {
+    try {
+      const nextStatus = task.status === "done" ? (task.linked_event_id ? "scheduled" : "todo") : "done";
+      await updateWorkTask(task.id, { status: nextStatus });
+      setWorkNotice(nextStatus === "done" ? "Task marked done." : "Task reopened.");
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to update task.");
+    }
+  }
+
+  async function handleBreakDownTask() {
+    const targetTask = selectedProject?.tasks.find((task) => task.status !== "done");
+    if (!targetTask) {
+      setWorkError("There is no open task to break down.");
+      return;
+    }
+
+    try {
+      await breakDownWorkTask(targetTask.id);
+      setWorkNotice(`Split ${targetTask.name} into smaller tasks.`);
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to break down task.");
+    }
+  }
+
+  async function handleBreakDownSpecificTask(task: WorkTaskRecord) {
+    try {
+      await breakDownWorkTask(task.id);
+      setContextMenu(null);
+      setWorkNotice(`Split ${task.name} into smaller tasks.`);
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to break down task.");
+    }
+  }
+
+  async function handleReviewProposal() {
+    if (!selectedProject) {
+      return;
+    }
+
+    try {
+      const proposal = await requestScheduleProposal(selectedProject.id, false);
+      setScheduleProposal(proposal);
+      setWorkNotice(proposal.summary);
+      setWorkError(null);
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to build schedule proposal.");
+    }
+  }
+
+  async function handleApplyProposal() {
+    if (!selectedProject) {
+      return;
+    }
+
+    try {
+      const proposal = await requestScheduleProposal(selectedProject.id, true);
+      setScheduleProposal(proposal);
+      setWorkNotice(proposal.summary);
+      await Promise.all([
+        loadWorkData({ preserveSelection: true }),
+        reloadCalendarEvents(),
+      ]);
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to apply schedule proposal.");
+    }
+  }
+
+  async function handleAgentAction(action: AgentAction) {
+    if (action.type === "open_project") {
+      const projectId = action.payload.project_id;
+      if (typeof projectId === "string") {
+        setSelectedProjectId(projectId);
+      }
+      return;
+    }
+
+    if (action.type === "review_proposal") {
+      const projectId =
+        typeof action.payload.project_id === "string" ? action.payload.project_id : selectedProject?.id;
+      if (!projectId || isSendingChat) {
+        return;
+      }
+
+      try {
+        appendChatMessage({
+          id: `user-${Date.now()}`,
+          role: "user",
+          body: action.label,
+        });
+        setIsSendingChat(true);
+        const response = await respondToAgent({
+          message: "Commit schedule proposal",
+          project_id: projectId,
+          commit: true,
+          now: new Date().toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          range_start: currentRange?.start,
+          range_end: currentRange?.end,
+        });
+        const nextMessage = toAgentChatMessage(response, projectId);
+        if (nextMessage.proposal) {
+          setScheduleProposal(nextMessage.proposal);
+        }
+        appendChatMessage(nextMessage);
+        setWorkNotice(response.summary);
+        setWorkError(null);
+        await syncAgentSideEffects(response);
+      } catch (error) {
+        setWorkError(error instanceof Error ? error.message : "Unable to apply agent action.");
+      } finally {
+        setIsSendingChat(false);
+      }
+      return;
+    }
+
+    if (action.type === "create_event") {
+      openCreateModal();
+      return;
+    }
+
+    if (action.type === "ask_follow_up") {
+      setChatInput("Move the plan into a realistic set of blocks for this week.");
+    }
+  }
+
+  async function syncAgentSideEffects(response: AgentResponse) {
+    const shouldReloadCalendar =
+      response.route === "calendar" ||
+      response.summary.toLowerCase().includes("created event") ||
+      response.summary.toLowerCase().includes("updated event") ||
+      response.summary.toLowerCase().includes("deleted event") ||
+      response.summary.toLowerCase().includes("scheduled ");
+
+    const shouldReloadWork =
+      response.route === "planning" || response.route === "coaching";
+
+    await Promise.all([
+      shouldReloadCalendar ? reloadCalendarEvents() : Promise.resolve(),
+      shouldReloadWork ? loadWorkData({ preserveSelection: true }) : Promise.resolve(),
+    ]);
+  }
+
+  async function handleDeleteProject(project: WorkProjectRecord) {
+    const confirmed = window.confirm(`Delete project "${project.name}" and all of its tasks?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteWorkProject(project.id);
+      setContextMenu(null);
+      setProjectModal(null);
+      setWorkNotice(`Deleted ${project.name}.`);
+      if (selectedProjectId === project.id) {
+        setSelectedProjectId(null);
+      }
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to delete project.");
+    }
+  }
+
+  async function handleDeleteTask(task: WorkTaskRecord) {
+    const confirmed = window.confirm(`Delete task "${task.name}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteWorkTask(task.id);
+      setContextMenu(null);
+      setTaskModal(null);
+      setWorkNotice(`Deleted ${task.name}.`);
+      await loadWorkData({ preserveSelection: true });
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Unable to delete task.");
+    }
+  }
+
+  const contextProject =
+    contextMenu?.kind === "project"
+      ? allProjects.find((project) => project.id === contextMenu.projectId) ?? null
+      : allProjects.find((project) => project.id === contextMenu?.projectId) ?? null;
+  const contextTask =
+    contextMenu?.kind === "task"
+      ? contextProject?.tasks.find((task) => task.id === contextMenu.id) ?? null
+      : null;
+  const modalProject =
+    projectModal?.projectId
+      ? allProjects.find((project) => project.id === projectModal.projectId) ?? null
+      : null;
+  const modalTask =
+    taskModal?.taskId && taskModal.projectId
+      ? allProjects
+          .find((project) => project.id === taskModal.projectId)
+          ?.tasks.find((task) => task.id === taskModal.taskId) ?? null
+      : null;
+
   return (
     <>
       <main className="app-shell" data-active-tab={activeTab}>
@@ -619,8 +925,17 @@ export function CalendarShell() {
                 <div className="left-stack work-left-stack">
                   <section className="panel-card work-sidebar">
                     <p className="section-title">Areas</p>
+                    {(isLoadingWork || workError || workNotice) ? (
+                      <div className="status-row">
+                        {isLoadingWork ? (
+                          <span className="status-item status-item-loading">Loading work…</span>
+                        ) : null}
+                        {workError ? <span>{workError}</span> : null}
+                        {!workError && workNotice ? <span>{workNotice}</span> : null}
+                      </div>
+                    ) : null}
                     <div className="area-list">
-                      {WORK_AREAS.map((area) => (
+                      {workAreas.map((area) => (
                         <section key={area.id} className="area-section">
                           <p className="area-title">{area.name}</p>
                           <div className="project-list">
@@ -629,7 +944,7 @@ export function CalendarShell() {
                                 key={project.id}
                                 type="button"
                                 className="project-nav-item"
-                                data-active={project.id === selectedProject.id || undefined}
+                                data-active={project.id === selectedProject?.id || undefined}
                                 onClick={() => setSelectedProjectId(project.id)}
                               >
                                 <span
@@ -640,7 +955,7 @@ export function CalendarShell() {
                                 <span className="project-nav-copy">
                                   <span className="project-nav-name">{project.name}</span>
                                   <span className="project-nav-meta">
-                                    {toProjectLabel(project.status)} · {project.lastWorkedOn}
+                                    {toProjectLabel(project.status)} · {project.last_worked_on}
                                   </span>
                                 </span>
                               </button>
@@ -649,7 +964,11 @@ export function CalendarShell() {
                         </section>
                       ))}
                     </div>
-                    <button className="ghost-button full-width-button" type="button">
+                    <button
+                      className="ghost-button full-width-button"
+                      type="button"
+                      onClick={openProjectCreateModal}
+                    >
                       New project
                     </button>
                   </section>
@@ -660,7 +979,7 @@ export function CalendarShell() {
                 <div className="work-project-stream">
                   <div className="work-task-list-header">
                     <p className="section-title">
-                      {areaNameForId(selectedProject.areaId)} projects
+                      {selectedProject ? areaNameForId(workAreas, selectedProject.area_id) : "Projects"}
                     </p>
                     <span className="task-count">{visibleProjects.length} projects</span>
                   </div>
@@ -674,60 +993,112 @@ export function CalendarShell() {
                       <section
                         key={project.id}
                         className="project-accordion-card"
-                        data-active={project.id === selectedProject.id || undefined}
+                        data-active={project.id === selectedProject?.id || undefined}
+                        onContextMenu={(event) =>
+                          openContextMenu(event, {
+                            kind: "project",
+                            id: project.id,
+                            projectId: project.id,
+                          })
+                        }
                       >
-                        <button
-                          type="button"
-                          className="project-accordion-header"
-                          onClick={() => {
-                            setSelectedProjectId(project.id);
-                            toggleProjectExpansion(project.id);
-                          }}
-                        >
-                          <div className="project-accordion-title-row">
-                            <div className="project-accordion-name-wrap">
+                        <div className="project-accordion-head">
+                          <button
+                            type="button"
+                            className="project-accordion-header"
+                            onClick={() => {
+                              setSelectedProjectId(project.id);
+                              toggleProjectExpansion(project.id);
+                            }}
+                          >
+                            <div className="project-accordion-title-row">
+                              <div className="project-accordion-name-wrap">
+                                <span
+                                  className="priority-dot"
+                                  data-priority={project.priority}
+                                  aria-hidden="true"
+                                />
+                                <h2 className="project-accordion-title">{project.name}</h2>
+                              </div>
                               <span
-                                className="priority-dot"
-                                data-priority={project.priority}
-                                aria-hidden="true"
-                              />
-                              <h2 className="project-accordion-title">{project.name}</h2>
+                                className="status-badge"
+                                data-tone={toneForAgentStatus(project.agent_status)}
+                              >
+                                {project.agent_status}
+                              </span>
                             </div>
-                            <span
-                              className="status-badge"
-                              data-tone={toneForAgentStatus(project.agentStatus)}
-                            >
-                              {project.agentStatus}
-                            </span>
-                          </div>
 
-                          <div className="project-accordion-meta">
-                            <span>{areaNameForId(project.areaId)}</span>
-                            <span>Last worked: {project.lastWorkedOn}</span>
-                            <span>Deadline: {project.softDeadline ?? "None"}</span>
-                            <span>{openTasks.length} open tasks</span>
-                          </div>
-                        </button>
+                            <div className="project-accordion-meta">
+                              <span>{areaNameForId(workAreas, project.area_id)}</span>
+                              <span>Last worked: {project.last_worked_on}</span>
+                              <span>Deadline: {formatDeadline(project.soft_deadline) ?? "None"}</span>
+                              <span>{openTasks.length} open tasks</span>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="item-menu-button"
+                            aria-label={`Open menu for ${project.name}`}
+                            onClick={(event) =>
+                              openContextMenu(event, {
+                                kind: "project",
+                                id: project.id,
+                                projectId: project.id,
+                              })
+                            }
+                          >
+                            ⋯
+                          </button>
+                        </div>
 
                         {isExpanded ? (
                           <div className="project-accordion-body">
                             <div className="task-list-group">
                               {openTasks.map((task) => (
-                                <div key={task.id} className="task-row">
+                                <div
+                                  key={task.id}
+                                  className="task-row"
+                                  onContextMenu={(event) =>
+                                    openContextMenu(event, {
+                                      kind: "task",
+                                      id: task.id,
+                                      projectId: project.id,
+                                    })
+                                  }
+                                >
                                   <label className="task-checkbox">
-                                    <input type="checkbox" disabled={task.status === "done"} />
+                                    <input
+                                      type="checkbox"
+                                      checked={task.status === "done"}
+                                      onChange={() => handleTaskToggle(task)}
+                                    />
                                   </label>
                                   <div className="task-copy">
                                     <p className="task-name">{task.name}</p>
                                   </div>
                                   <span className="task-pill" data-state={task.status}>
                                     {task.status === "scheduled"
-                                      ? `Scheduled · ${task.scheduledLabel}`
+                                      ? `Scheduled · ${task.scheduled_label ?? "Placed"}`
                                       : task.status === "overdue"
                                         ? "Overdue"
                                         : "Unscheduled"}
                                   </span>
-                                  <span className="task-duration">{task.estimateMinutes} min</span>
+                                  <span className="task-duration">{task.estimate_minutes} min</span>
+                                  <button
+                                    type="button"
+                                    className="item-menu-button"
+                                    aria-label={`Open menu for ${task.name}`}
+                                    onClick={(event) =>
+                                      openContextMenu(event, {
+                                        kind: "task",
+                                        id: task.id,
+                                        projectId: project.id,
+                                      })
+                                    }
+                                  >
+                                    ⋯
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -735,21 +1106,53 @@ export function CalendarShell() {
                             {doneTasks.length ? (
                               <div className="task-list-complete">
                                 {doneTasks.map((task) => (
-                                  <div key={task.id} className="task-row task-row-done">
+                                  <div
+                                    key={task.id}
+                                    className="task-row task-row-done"
+                                    onContextMenu={(event) =>
+                                      openContextMenu(event, {
+                                        kind: "task",
+                                        id: task.id,
+                                        projectId: project.id,
+                                      })
+                                    }
+                                  >
                                     <label className="task-checkbox">
-                                      <input type="checkbox" checked readOnly />
+                                      <input
+                                        type="checkbox"
+                                        checked
+                                        onChange={() => handleTaskToggle(task)}
+                                      />
                                     </label>
                                     <div className="task-copy">
                                       <p className="task-name">{task.name}</p>
                                     </div>
                                     <span className="task-pill" data-state="done">Done</span>
-                                    <span className="task-duration">{task.estimateMinutes} min</span>
+                                    <span className="task-duration">{task.estimate_minutes} min</span>
+                                    <button
+                                      type="button"
+                                      className="item-menu-button"
+                                      aria-label={`Open menu for ${task.name}`}
+                                      onClick={(event) =>
+                                        openContextMenu(event, {
+                                          kind: "task",
+                                          id: task.id,
+                                          projectId: project.id,
+                                        })
+                                      }
+                                    >
+                                      ⋯
+                                    </button>
                                   </div>
                                 ))}
                               </div>
                             ) : null}
 
-                            <button className="ghost-button add-task-button" type="button">
+                            <button
+                              className="ghost-button add-task-button"
+                              type="button"
+                              onClick={() => openTaskCreateModal(project.id)}
+                            >
                               Add task
                             </button>
                           </div>
@@ -765,17 +1168,46 @@ export function CalendarShell() {
                   <section className="panel-card work-agent-panel">
                     <div className="agent-panel-section">
                       <p className="coach-label">Agent Assessment</p>
-                      <div className="coach-bubble">{selectedProject.assessment}</div>
+                      <div className="coach-bubble">
+                        {selectedProject?.assessment ?? "Select a project to see planning context."}
+                      </div>
                     </div>
 
                     <div className="agent-panel-section">
                       <p className="section-title">Suggested next moves</p>
-                      <button className="ghost-button full-width-button" type="button">
+                      <button
+                        className="ghost-button full-width-button"
+                        type="button"
+                        onClick={handleReviewProposal}
+                        disabled={!selectedProject}
+                      >
                         Review schedule proposal
                       </button>
-                      <button className="ghost-button full-width-button" type="button">
+                      <button
+                        className="ghost-button full-width-button"
+                        type="button"
+                        onClick={handleBreakDownTask}
+                        disabled={!selectedProject}
+                      >
                         Break into smaller tasks
                       </button>
+                      {scheduleProposal && selectedProject && scheduleProposal.project_id === selectedProject.id ? (
+                        <div className="context-list">
+                          <div className="context-item">
+                            <strong>{scheduleProposal.summary}</strong>
+                          </div>
+                          <ScheduleProposalPreview proposal={scheduleProposal} />
+                          {scheduleProposal.committed ? null : (
+                            <button
+                              className="primary-button full-width-button"
+                              type="button"
+                              onClick={handleApplyProposal}
+                            >
+                              Apply proposal
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
 
                     <button
@@ -794,7 +1226,7 @@ export function CalendarShell() {
               <aside className="jarvis-sidebar">
                 <section className="jarvis-tree">
                   <div className="jarvis-tree-scroll">
-                    {WORK_AREAS.map((area) => (
+                    {workAreas.map((area) => (
                       <section key={area.id} className="area-section">
                         <p className="area-title">{area.name}</p>
                         <div className="project-list">
@@ -802,13 +1234,13 @@ export function CalendarShell() {
                             <div
                               key={project.id}
                               className="jarvis-tree-project"
-                              data-active={project.id === selectedProject.id || undefined}
+                              data-active={project.id === selectedProject?.id || undefined}
                             >
                               <div className="jarvis-project-header">
                                 <button
                                   type="button"
                                   className="project-nav-item jarvis-project-button"
-                                  data-active={project.id === selectedProject.id || undefined}
+                                  data-active={project.id === selectedProject?.id || undefined}
                                   onClick={() => setSelectedProjectId(project.id)}
                                 >
                                   <span
@@ -819,7 +1251,7 @@ export function CalendarShell() {
                                   <span className="project-nav-copy">
                                     <span className="project-nav-name">{project.name}</span>
                                     <span className="project-nav-meta">
-                                      {project.agentStatus} · {project.lastWorkedOn}
+                                      {project.agent_status} · {project.last_worked_on}
                                     </span>
                                   </span>
                                 </button>
@@ -874,9 +1306,50 @@ export function CalendarShell() {
                             ) : null}
                           </div>
                           <p className="chat-message-body">{message.body}</p>
+                          {message.proposal ? (
+                            <ScheduleProposalPreview proposal={message.proposal} />
+                          ) : null}
+                          {message.insights?.length ? (
+                            <div className="agent-insight-grid">
+                              {message.insights.map((insight) => (
+                                <article key={`${message.id}-${insight.title}`} className="agent-insight-card">
+                                  <p className="agent-insight-title">{insight.title}</p>
+                                  <p className="agent-insight-body">{insight.body}</p>
+                                </article>
+                              ))}
+                            </div>
+                          ) : null}
+                          {message.actions?.length ? (
+                            <div className="agent-action-row">
+                              {message.actions.map((action) => (
+                                <button
+                                  key={`${message.id}-${action.label}`}
+                                  className="ghost-button chat-prompt-chip"
+                                  type="button"
+                                  onClick={() => void handleAgentAction(action)}
+                                  disabled={isSendingChat}
+                                >
+                                  {action.label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
                         </article>
                       ),
                     )}
+                    {isSendingChat ? (
+                      <article className="chat-message" data-role="agent">
+                        <div className="chat-message-head">
+                          <span />
+                          <span className="chat-message-meta">Thinking</span>
+                        </div>
+                        <div className="chat-loader" aria-label="Working through the request" role="status">
+                          <span className="chat-loader-dot" />
+                          <span className="chat-loader-dot" />
+                          <span className="chat-loader-dot" />
+                        </div>
+                      </article>
+                    ) : null}
                   </div>
 
                   <div className="chat-quick-prompts jarvis-prompts">
@@ -885,7 +1358,8 @@ export function CalendarShell() {
                         key={prompt}
                         className="ghost-button chat-prompt-chip"
                         type="button"
-                        onClick={() => sendChatMessage(prompt)}
+                        onClick={() => void sendChatMessage(prompt)}
+                        disabled={isSendingChat}
                       >
                         {prompt}
                       </button>
@@ -896,18 +1370,25 @@ export function CalendarShell() {
                     className="jarvis-composer"
                     onSubmit={(event) => {
                       event.preventDefault();
-                      sendChatMessage(chatInput);
+                      void sendChatMessage(chatInput);
                     }}
                   >
                     <textarea
                       className="field-input jarvis-input"
                       value={chatInput}
                       onChange={(event) => setChatInput(event.target.value)}
-                      placeholder="Message Jarvis"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void sendChatMessage(chatInput);
+                        }
+                      }}
+                      placeholder="Ask the agent to plan, prioritize, or review your calendar."
                       rows={1}
+                      disabled={isSendingChat}
                     />
-                    <button className="primary-button jarvis-send-button" type="submit">
-                      Send
+                    <button className="primary-button jarvis-send-button" type="submit" disabled={isSendingChat}>
+                      {isSendingChat ? "Thinking..." : "Send"}
                     </button>
                   </form>
                 </div>
@@ -1104,6 +1585,244 @@ export function CalendarShell() {
         </div>
       </main>
 
+      {contextMenu ? (
+        <div
+          className="context-menu"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {contextMenu.kind === "project" && contextProject ? (
+            <>
+              <button
+                className="context-menu-item"
+                type="button"
+                onClick={() => openProjectEditModal(contextProject)}
+              >
+                Edit project
+              </button>
+              <button
+                className="context-menu-item"
+                type="button"
+                onClick={() => openTaskCreateModal(contextProject.id)}
+              >
+                Add task
+              </button>
+              <button
+                className="context-menu-item context-menu-item-danger"
+                type="button"
+                onClick={() => handleDeleteProject(contextProject)}
+              >
+                Delete project
+              </button>
+            </>
+          ) : null}
+
+          {contextMenu.kind === "task" && contextProject && contextTask ? (
+            <>
+              <button
+                className="context-menu-item"
+                type="button"
+                onClick={() => openTaskEditModal(contextProject.id, contextTask)}
+              >
+                Edit task
+              </button>
+              <button
+                className="context-menu-item"
+                type="button"
+                onClick={() => handleTaskToggle(contextTask)}
+              >
+                {contextTask.status === "done" ? "Mark as open" : "Mark as done"}
+              </button>
+              <button
+                className="context-menu-item"
+                type="button"
+                onClick={() => handleBreakDownSpecificTask(contextTask)}
+              >
+                Break into smaller tasks
+              </button>
+              <button
+                className="context-menu-item context-menu-item-danger"
+                type="button"
+                onClick={() => handleDeleteTask(contextTask)}
+              >
+                Delete task
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {projectModal ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setProjectModal(null)}>
+          <div
+            className="modal-panel modal-panel-quick"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Work</p>
+                <h2 id="project-modal-title" className="modal-title">
+                  {projectModal.mode === "create" ? "New project" : "Edit project"}
+                </h2>
+              </div>
+              <button className="ghost-button" type="button" onClick={() => setProjectModal(null)}>
+                Close
+              </button>
+            </div>
+
+            <form className="event-form" onSubmit={handleProjectSubmit}>
+              <label className="field">
+                <span className="field-label">Name</span>
+                <input
+                  className="field-input"
+                  value={projectModal.name}
+                  onChange={(event) =>
+                    setProjectModal((current) =>
+                      current ? { ...current, name: event.target.value } : current,
+                    )
+                  }
+                  placeholder="Interview Prep"
+                  required
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Area</span>
+                <select
+                  className="field-input"
+                  value={projectModal.areaId}
+                  onChange={(event) =>
+                    setProjectModal((current) =>
+                      current ? { ...current, areaId: event.target.value } : current,
+                    )
+                  }
+                >
+                  {workAreas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                <span className="field-label">Soft deadline</span>
+                <input
+                  className="field-input"
+                  type="date"
+                  value={projectModal.softDeadline}
+                  onChange={(event) =>
+                    setProjectModal((current) =>
+                      current ? { ...current, softDeadline: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+
+              <div className="modal-actions">
+                {projectModal.mode === "edit" && modalProject ? (
+                  <button
+                    className="danger-button"
+                    type="button"
+                    onClick={() => handleDeleteProject(modalProject)}
+                  >
+                    Delete
+                  </button>
+                ) : null}
+                <button className="ghost-button" type="button" onClick={() => setProjectModal(null)}>
+                  Cancel
+                </button>
+                <button className="primary-button" type="submit">
+                  {projectModal.mode === "create" ? "Create project" : "Save project"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {taskModal ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setTaskModal(null)}>
+          <div
+            className="modal-panel modal-panel-quick"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Work</p>
+                <h2 id="task-modal-title" className="modal-title">
+                  {taskModal.mode === "create" ? "New task" : "Edit task"}
+                </h2>
+              </div>
+              <button className="ghost-button" type="button" onClick={() => setTaskModal(null)}>
+                Close
+              </button>
+            </div>
+
+            <form className="event-form" onSubmit={handleTaskSubmit}>
+              <label className="field">
+                <span className="field-label">Name</span>
+                <input
+                  className="field-input"
+                  value={taskModal.name}
+                  onChange={(event) =>
+                    setTaskModal((current) =>
+                      current ? { ...current, name: event.target.value } : current,
+                    )
+                  }
+                  placeholder="Run mock interview"
+                  required
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Estimate (minutes)</span>
+                <input
+                  className="field-input"
+                  type="number"
+                  min="15"
+                  step="5"
+                  value={taskModal.estimateMinutes}
+                  onChange={(event) =>
+                    setTaskModal((current) =>
+                      current ? { ...current, estimateMinutes: event.target.value } : current,
+                    )
+                  }
+                  required
+                />
+              </label>
+
+              <div className="modal-actions">
+                {taskModal.mode === "edit" && modalTask ? (
+                  <button
+                    className="danger-button"
+                    type="button"
+                    onClick={() => handleDeleteTask(modalTask)}
+                  >
+                    Delete
+                  </button>
+                ) : null}
+                <button className="ghost-button" type="button" onClick={() => setTaskModal(null)}>
+                  Cancel
+                </button>
+                <button className="primary-button" type="submit">
+                  {taskModal.mode === "create" ? "Create task" : "Save task"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       {isCreateModalOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={closeCreateModal}>
           <div
@@ -1278,11 +1997,11 @@ export function CalendarShell() {
   );
 }
 
-function areaNameForId(areaId: string): string {
-  return WORK_AREAS.find((area) => area.id === areaId)?.name ?? "Unknown";
+function areaNameForId(areas: WorkAreaRecord[], areaId: string): string {
+  return areas.find((area) => area.id === areaId)?.name ?? "Unknown";
 }
 
-function toProjectLabel(status: WorkProjectStatus): string {
+function toProjectLabel(status: WorkProjectRecord["status"]): string {
   if (status === "active") {
     return "Active";
   }
@@ -1294,7 +2013,7 @@ function toProjectLabel(status: WorkProjectStatus): string {
   return "Done";
 }
 
-function toneForAgentStatus(status: WorkProject["agentStatus"]): AgentCardTone {
+function toneForAgentStatus(status: WorkProjectRecord["agent_status"]): AgentCardTone {
   if (status === "Neglected") {
     return "danger";
   }
@@ -1310,22 +2029,124 @@ function toneForAgentStatus(status: WorkProject["agentStatus"]): AgentCardTone {
   return "warn";
 }
 
-function buildAgentReply(project: WorkProject, prompt: string): string {
-  const lowerPrompt = prompt.toLowerCase();
+function toAgentChatMessage(
+  response: AgentResponse,
+  fallbackProjectId: string | null,
+): AgentChatMessage {
+  return {
+    id: `agent-${Date.now()}`,
+    role: "agent",
+    meta: `${response.route} agent`,
+    body: response.summary,
+    insights: response.insights,
+    actions: response.actions,
+    proposal: toScheduleProposal(response, fallbackProjectId),
+  };
+}
 
-  if (lowerPrompt.includes("park")) {
-    return `If we park ${project.name}, I would keep one tiny re-entry task and remove the rest from this week. That reduces guilt and makes the decision real.`;
+function ScheduleProposalPreview({ proposal }: { proposal: ScheduleProposal }) {
+  return (
+    <div className="schedule-proposal-card" data-committed={proposal.committed || undefined}>
+      <div className="schedule-proposal-header">
+        <span className="schedule-proposal-label">
+          {proposal.committed ? "Scheduled blocks" : "Proposed schedule"}
+        </span>
+        <span className="schedule-proposal-meta">
+          {proposal.blocks.length} block{proposal.blocks.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {proposal.blocks.length ? (
+        <div className="schedule-proposal-list">
+          {proposal.blocks.map((block) => (
+            <div key={`${block.task_id}-${block.start}`} className="schedule-proposal-item">
+              <p className="schedule-proposal-task">{block.task_name}</p>
+              <p className="schedule-proposal-time">
+                {formatProposalWindow(block.start, block.end)} · {formatProposalDuration(block.start, block.end)}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="schedule-proposal-empty">No blocks proposed.</p>
+      )}
+    </div>
+  );
+}
+
+function toScheduleProposal(
+  response: AgentResponse,
+  fallbackProjectId: string | null,
+): ScheduleProposal | null {
+  if (response.route !== "planning") {
+    return null;
   }
 
-  if (lowerPrompt.includes("schedule") || lowerPrompt.includes("time")) {
-    return `For ${project.name}, I would place the hardest task in a Morning window, then use one shorter Midday block for cleanup work. That keeps the plan credible instead of crowded.`;
+  const projectId =
+    typeof response.data.project_id === "string" ? response.data.project_id : fallbackProjectId;
+  const blocks = Array.isArray(response.data.blocks) ? response.data.blocks : [];
+  if (!projectId) {
+    return null;
   }
 
-  if (lowerPrompt.includes("smaller") || lowerPrompt.includes("break")) {
-    return `I would split the next step into two pieces under 30 minutes each. Right now the project is paying a startup cost every time you look at it.`;
+  return {
+    project_id: projectId,
+    committed: response.actions.length === 0 && response.summary.toLowerCase().includes("scheduled"),
+    summary: response.summary,
+    blocks: blocks.flatMap((block) => {
+      const candidate = typeof block === "object" && block !== null ? (block as Record<string, unknown>) : null;
+      if (
+        !candidate ||
+        typeof candidate.task_id !== "string" ||
+        typeof candidate.task_name !== "string" ||
+        typeof candidate.start !== "string" ||
+        typeof candidate.end !== "string"
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          task_id: candidate.task_id,
+          task_name: candidate.task_name,
+          start: candidate.start,
+          end: candidate.end,
+          title: candidate.task_name,
+        },
+      ];
+    }),
+  };
+}
+
+function formatProposalWindow(start: string, end: string): string {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  return `${startDate.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })} - ${endDate.toLocaleString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+function formatProposalDuration(start: string, end: string): string {
+  const minutes = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000));
+  return `${minutes} min`;
+}
+
+function formatDeadline(value: string | null): string | null {
+  if (!value) {
+    return null;
   }
 
-  return `My take on ${project.name}: protect the next meaningful step, not the entire ambition. The plan should feel slightly firm, not heroic.`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }
 
 function toDateInputValue(date: Date): string {
